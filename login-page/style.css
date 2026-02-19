@@ -1,0 +1,98 @@
+/* Page background */
+body {
+  margin: 0;
+  height: 100vh;
+  background: white;
+  font-family: Arial, sans-serif;
+
+  /* Center the login card */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Green login card */
+.login-card {
+  background-color: #4f8f2f;
+  color: white;
+  width: 320px;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+/* Headings */
+.login-card h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.login-card h2 {
+  margin-top: 10px;
+  font-weight: normal;
+}
+
+/* Input container */
+.input-group {
+  position: relative;
+  margin: 20px 0;
+}
+
+/* Text inputs */
+.input-group input {
+  width: 100%;
+  padding: 10px 40px 10px 5px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid white;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+/* Placeholder color */
+.input-group input::placeholder {
+  color: #e0e0e0;
+}
+
+/* ICON STYLING
+   PNG icons should be ~20x20 pixels
+*/
+.icon {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+}
+
+/* Login button */
+.login-btn {
+  margin-top: 20px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 25px;
+  border: none;
+  background: white;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Links */
+.link {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* Small text */
+.small-text {
+  margin: 10px 0;
+  font-size: 14px;
+}
