@@ -13,11 +13,11 @@ body {
 
 /* Green login card */
 .login-card {
-  background-color: #4f8f2f;
+  background-color: #7688b1;
   color: white;
   width: 320px;
   padding: 30px;
-  border-radius: 20px;
+  border-radius: 30px;
   text-align: center;
 }
 
@@ -40,7 +40,7 @@ body {
 
 /* Text inputs */
 .input-group input {
-  width: 100%;
+  width: 90%;
   padding: 10px 40px 10px 5px;
   background: none;
   border: none;
@@ -73,6 +73,7 @@ body {
   width: 100%;
   padding: 10px;
   border-radius: 25px;
+  margin-bottom: 20px;
   border: none;
   background: white;
   color: black;
@@ -93,6 +94,6 @@ body {
 
 /* Small text */
 .small-text {
-  margin: 10px 0;
+  margin: 15px 0;
   font-size: 14px;
 }
