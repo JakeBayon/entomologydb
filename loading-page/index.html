@@ -13,7 +13,7 @@
 
     <section class="loading-card">
 
-      <!-- enlarged beetle image (no circle background) -->
+      <!-- beetle image -->
       <img
         src="./icons/beetle.png"
         alt="Seed beetle icon"
@@ -26,10 +26,10 @@
         <span id="dots">...</span>
       </div>
 
-      <!-- fact text -->
+      <!-- random fact -->
       <p class="fact">
         <span class="fact-bold">DID YOU KNOW?</span>
-        SEED BEETLES OFTEN EXHIBIT A PROMINENT POSTERIOR END, KNOWN AS THE PYGIDIUM
+        <span id="fact-text"></span>
       </p>
 
     </section>
@@ -37,6 +37,7 @@
   </main>
 
   <script>
+    /* animated loading dots */
     const dots = document.getElementById("dots");
     const frames = [".", "..", "..."];
     let i = 0;
@@ -45,6 +46,40 @@
       i = (i + 1) % frames.length;
       dots.textContent = frames[i];
     }, 500);
+
+
+    /* seed beetle facts */
+    const facts = [
+
+      "Seed beetles lay their eggs directly on seeds, where larvae hatch and burrow inside.",
+
+      "Most seed beetle larvae develop entirely inside a single seed.",
+
+      "Seed beetles belong to the subfamily Bruchinae within the leaf beetle family.",
+
+      "Many seed beetles specialize on only one plant species.",
+
+      "The exposed rear end of seed beetles is called the pygidium.",
+
+      "Seed beetles play an important role in studying evolution and host specialization.",
+
+      "Some seed beetles can be agricultural pests, damaging stored legumes.",
+
+      "Adult seed beetles often live only a few weeks.",
+
+      "Seed beetles use chemical cues to locate suitable host plants.",
+
+      "The shape and structure of the pygidium can help identify species."
+
+    ];
+
+    /* choose random fact */
+    const factText = document.getElementById("fact-text");
+
+    const randomIndex = Math.floor(Math.random() * facts.length);
+
+    factText.textContent = facts[randomIndex];
+
   </script>
 
 </body>

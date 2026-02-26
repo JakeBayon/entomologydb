@@ -24,13 +24,11 @@ body {
   text-align: center;
 }
 
-/* enlarged beetle image */
 .beetle-img {
-  width: 180px;   /* increased size */
+  width: 180px;
   height: auto;
 }
 
-/* loading text */
 .loading-text {
   font-weight: 700;
   font-size: 18px;
@@ -42,7 +40,6 @@ body {
   width: 24px;
 }
 
-/* fact text */
 .fact {
   max-width: 620px;
   font-size: 14px;
