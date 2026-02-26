@@ -1,10 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Map Page</title>
-<!-- Scripts and styles are included here -->
+
+  <!-- MapLibre CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css"
+  />
+
+  <!-- Your CSS -->
+  <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
-<!-- Map content is included here -->
+  <div id="map"></div>
+
+  <!-- MapLibre JS -->
+  <script src="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js"></script>
+
+  <!-- Your JS -->
+  <script src="./map.js"></script>
 </body>
 </html>
