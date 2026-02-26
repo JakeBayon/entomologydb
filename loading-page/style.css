@@ -1,94 +1,71 @@
-/* loading page styles (minimal + centered) */
-
 :root {
-  --bg: #ffffff;
-  --ink: #111111;
-  --muted: #2a2a2a;
-  --brand: #6f7fa4; /* bluish circle tone */
-}
-
-* { box-sizing: border-box; }
-
-html, body {
-  height: 100%;
+  --brand-blue: #6f7fa4;
+  --text-dark: #111111;
+  --text-muted: #333333;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #ffffff;
 }
 
 .loading-wrap {
-  min-height: 100%;
-  display: grid;
-  place-items: center;
-  padding: 32px 16px;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .loading-card {
-  width: min(720px, 100%);
-  display: grid;
-  justify-items: center;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 18px;
+  text-align: center;
 }
 
-/* circle logo */
+/* blue circle container */
 .logo {
-  width: 140px;
-  height: 140px;
-  background: var(--brand);
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
+  width: 150px;
+  height: 150px;
+  background: var(--brand-blue);
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.beetle {
-  width: 92px;
-  height: 92px;
-  display: block;
+/* beetle image */
+.beetle-img {
+  width: 95px;
+  height: auto;
 }
 
 /* loading text */
 .loading-text {
   font-weight: 700;
-  letter-spacing: 1px;
   font-size: 18px;
+  letter-spacing: 1px;
 }
 
-.loading-word {
-  text-transform: uppercase;
-}
-
-.dots {
+#dots {
   display: inline-block;
-  width: 26px; /* keeps the text from shifting as dots change */
+  width: 24px;
   text-align: left;
 }
 
-/* fun fact line */
+/* fact text */
 .fact {
-  margin: 0;
-  max-width: 620px;
-  line-height: 1.35;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  max-width: 600px;
   font-size: 14px;
-  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-.fact-strong {
+.fact-bold {
   font-weight: 800;
-  color: var(--ink);
-}
-
-.fact-rest {
-  font-weight: 500;
-}
-
-/* accessibility: reduce motion */
-@media (prefers-reduced-motion: reduce) {
-  .dots { width: auto; }
+  color: var(--text-dark);
 }
