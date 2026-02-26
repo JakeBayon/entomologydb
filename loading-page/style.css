@@ -1,13 +1,12 @@
 :root {
-  --brand-blue: #6f7fa4;
   --text-dark: #111111;
   --text-muted: #333333;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .loading-wrap {
@@ -21,25 +20,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 22px;
   text-align: center;
 }
 
-/* blue circle container */
-.logo {
-  width: 150px;
-  height: 150px;
-  background: var(--brand-blue);
-  border-radius: 50%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* beetle image */
+/* enlarged beetle image */
 .beetle-img {
-  width: 95px;
+  width: 180px;   /* increased size */
   height: auto;
 }
 
@@ -53,12 +40,11 @@ body {
 #dots {
   display: inline-block;
   width: 24px;
-  text-align: left;
 }
 
 /* fact text */
 .fact {
-  max-width: 600px;
+  max-width: 620px;
   font-size: 14px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
