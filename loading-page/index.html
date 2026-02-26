@@ -8,61 +8,46 @@
 </head>
 
 <body>
-  <main class="loading-wrap" aria-label="Loading screen">
+  <main class="loading-wrap">
+
     <section class="loading-card">
-      <!-- logo circle -->
-      <div class="logo" aria-hidden="true">
-        <!-- simple beetle mark as inline svg (so no external assets needed) -->
-        <svg class="beetle" viewBox="0 0 200 200" role="img" aria-label="Seed beetle icon">
-          <!-- antennae -->
-          <path d="M80 62 C70 45, 55 40, 42 44" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
-          <path d="M120 62 C130 45, 145 40, 158 44" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round"/>
 
-          <!-- head -->
-          <circle cx="100" cy="78" r="16" fill="#ffffff"/>
-
-          <!-- body halves -->
-          <path d="M100 92
-                   C84 92, 68 110, 68 134
-                   C68 160, 86 178, 100 178
-                   Z" fill="#ffffff"/>
-          <path d="M100 92
-                   C116 92, 132 110, 132 134
-                   C132 160, 114 178, 100 178
-                   Z" fill="#ffffff"/>
-
-          <!-- center split -->
-          <path d="M100 95 L100 175" stroke="#6f7fa4" stroke-width="10" stroke-linecap="round"/>
-        </svg>
+      <!-- beetle logo circle -->
+      <div class="logo">
+        <img
+          src="./icons/beetle.png"
+          alt="Seed beetle icon"
+          class="beetle-img"
+        />
       </div>
 
       <!-- loading text -->
-      <div class="loading-text" aria-live="polite">
-        <span class="loading-word">LOADING</span><span class="dots" id="dots">...</span>
+      <div class="loading-text">
+        <span>LOADING</span>
+        <span id="dots">...</span>
       </div>
 
-      <!-- fun fact -->
+      <!-- fact text -->
       <p class="fact">
-        <span class="fact-strong">DID YOU KNOW?</span>
-        <span class="fact-rest">
-          SEED BEETLES OFTEN EXHIBIT A PROMINENT POSTERIOR END, KNOWN AS THE PYGIDIUM
-        </span>
+        <span class="fact-bold">DID YOU KNOW?</span>
+        SEED BEETLES OFTEN EXHIBIT A PROMINENT POSTERIOR END, KNOWN AS THE PYGIDIUM
       </p>
+
     </section>
+
   </main>
 
+  <!-- optional animated dots -->
   <script>
-    // tiny dot animation: cycles ".", "..", "..."
-    (function () {
-      const dotsEl = document.getElementById("dots");
-      const frames = [".", "..", "..."];
-      let i = 0;
+    const dots = document.getElementById("dots");
+    const frames = [".", "..", "..."];
+    let i = 0;
 
-      setInterval(() => {
-        i = (i + 1) % frames.length;
-        dotsEl.textContent = frames[i];
-      }, 500);
-    })();
+    setInterval(() => {
+      i = (i + 1) % frames.length;
+      dots.textContent = frames[i];
+    }, 500);
   </script>
+
 </body>
 </html>
