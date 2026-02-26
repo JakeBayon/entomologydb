@@ -1,0 +1,54 @@
+:root {
+  --text-dark: #111111;
+  --text-muted: #333333;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.loading-wrap {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  text-align: center;
+}
+
+.beetle-img {
+  width: 180px;
+  height: auto;
+}
+
+.loading-text {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+#dots {
+  display: inline-block;
+  width: 24px;
+}
+
+.fact {
+  max-width: 620px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fact-bold {
+  font-weight: 800;
+  color: var(--text-dark);
+}
