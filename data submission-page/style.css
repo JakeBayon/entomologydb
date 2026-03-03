@@ -118,9 +118,9 @@ h1{
 
 /* BLUE SECTIONS */
 .blue-section{
-  margin-top: 70px;
+  margin-top: 40px;           
   background: var(--section);
-  padding: 64px 0 78px 0;
+  padding: 50px 0 50px 0;      
 }
 
 .blue-section-2{
