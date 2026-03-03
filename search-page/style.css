@@ -1,0 +1,174 @@
+
+/* Layout */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+.search-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* LEFT PANEL */
+.filter-panel {
+  width: 300px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+.filter-header {
+  background: #76b476;      /* minty green */
+  color: white;
+
+  /* Center the "Search" text */
+  display: flex;
+  align-items: center;       /* vertical center */
+  justify-content: center;   /* horizontal center */
+
+  height: 120px;             /* gives it that big header feel */
+  padding: 0 20px;           /* keep side padding, no top/bottom padding */
+}
+
+.filter-header h2 {
+  margin: 0;
+}
+
+.filter-section {
+  border-bottom: 1px solid #eee;
+}
+
+.filter-title {
+  padding: 15px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-title:hover {
+  background: #f0f0f0;
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.arrow.rotate {
+  transform: rotate(180deg);
+}
+
+.filter-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding: 0 20px;
+}
+
+.filter-content.open {
+  max-height: 700px;
+  padding: 15px 20px;
+}
+
+.filter-content input,
+.filter-content select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.checkbox-text {
+  flex: 0 0 65%;  /* text area width */
+}
+
+.checkbox-box {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* RIGHT PANEL */
+.results-panel {
+  flex: 1;
+  padding: 40px;
+}
+
+.results-placeholder {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.location-group {
+  margin-bottom: 22px;   /* space between groups */
+}
+
+.location-group input,
+.location-group select {
+  margin-bottom: 8px;    /* small spacing inside group */
+}
+
+/* Cards grid on the right */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 26px;
+}
+
+/* Individual species card */
+.species-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 18px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 120px;
+}
+
+.species-info h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+}
+
+.sci-name {
+  margin: 0 0 12px 0;
+  color: #555;
+}
+
+.learn-more {
+  color: #111;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.learn-more:hover {
+  text-decoration: underline;
+}
+
+/* Default/loading image */
+.species-img {
+  width: 120px;
+  height: 90px;
+  object-fit: contain; /* keeps logo nicely centered */
+  opacity: 0.9;
+}
+
+/* Responsive: 1 column on smaller screens */
+@media (max-width: 900px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
