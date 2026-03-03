@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Submit Data | BruchinDB</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+
+  <!-- Top Nav Bar (same pattern as About page) -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#">
+        <img
+          src="./icons/bruchindb-logo.png"
+          alt="BruchinDB logo"
+          class="brand-logo"
+        />
+        <span class="brand-name">BruchinDB</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="#">Search</a>
+        <a class="nav-link" href="#">Map</a>
+        <a class="nav-link" href="#">Learn</a>
+        <a class="nav-link active" href="#">Submit Data</a>
+        <a class="nav-link" href="#">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Intro section -->
+  <main class="page">
+    <section class="intro">
+      <h1>Submit Data</h1>
+
+      <p class="intro-text">
+        Researchers and interested contributors may propose new seed beetle records, images, or data updates through the BruchinDB submission system. Submissions are reviewed by the database administrator before being approved and incorporated to ensure scientific accuracy and consistency. Detailed instructions for submitting materials are available within the Submit Data tab, and contributors are encouraged to share verified information that may improve or expand the database.
+      </p>
+    </section>
+
+    <!-- Upload Photo block -->
+    <section class="blue-section">
+      <div class="blue-inner">
+        <h2>Upload Photo</h2>
+
+        <div class="dropzone" role="button" tabindex="0" aria-label="Upload a file">
+          <div class="dropzone-box">
+            <div class="dz-icon" aria-hidden="true">☁︎</div>
+            <div class="dz-title">Upload a File</div>
+            <div class="dz-sub">Drag and drop files here</div>
+          </div>
+
+          <input class="file-input" type="file" aria-label="Choose file to upload" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Upload Additional Information + Contact Information -->
+    <section class="blue-section blue-section-2">
+      <div class="blue-inner">
+        <h2>Upload Additional Information</h2>
+
+        <div class="dropzone" role="button" tabindex="0" aria-label="Upload a file">
+          <div class="dropzone-box">
+            <div class="dz-icon" aria-hidden="true">☁︎</div>
+            <div class="dz-title">Upload a File</div>
+            <div class="dz-sub">Drag and drop files here</div>
+          </div>
+
+          <input class="file-input" type="file" aria-label="Choose file to upload" />
+        </div>
+
+        <h2 class="contact-title">Contact Information</h2>
+
+        <form class="contact-form" action="#" method="post">
+          <div class="field-row">
+            <label class="field-label" for="firstName">Full Name</label>
+
+            <div class="name-grid">
+              <div class="input-wrap">
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  class="input"
+                  placeholder="First Name"
+                  autocomplete="given-name"
+                />
+              </div>
+
+              <div class="input-wrap">
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  class="input"
+                  placeholder="Last Name"
+                  autocomplete="family-name"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <label class="field-label" for="email">E-mail</label>
+
+            <div class="input-wrap full">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                class="input"
+                placeholder="ex: myname@example.com"
+                autocomplete="email"
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Submit button section -->
+    <section class="submit-section">
+      <button class="submit-btn" type="button">Submit</button>
+    </section>
+  </main>
+
+  <script>
+    // Make the entire dropzone clickable to open the file picker
+    document.querySelectorAll(".dropzone").forEach((dz) => {
+      const input = dz.querySelector(".file-input");
+
+      dz.addEventListener("click", () => input.click());
+      dz.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") input.click();
+      });
+    });
+  </script>
+
+</body>
+</html>
