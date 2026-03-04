@@ -1,0 +1,113 @@
+:root{
+  --bg:#ffffff;
+  --ink:#111111;
+  --muted:#2a2a2a;
+  --bar:#7789AD;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+/* TOP BAR */
+.topbar{
+  height:76px;
+  background:var(--bar);
+  display:flex;
+  align-items:center;
+}
+
+.topbar-inner{
+  width:100%;
+  padding:0 34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  text-decoration:none;
+  color:#fff;
+}
+
+.brand-logo{
+  width:34px;
+  height:34px;
+  display:block;
+}
+
+.brand-name{
+  font-weight:800;
+  font-size:26px;
+}
+
+/* NAV LINKS */
+.nav{
+  display:flex;
+  align-items:center;
+  gap:58px;
+}
+
+.nav-link{
+  color:rgba(255,255,255,0.92);
+  text-decoration:none;
+  font-weight:700;
+  font-size:24px;
+}
+
+.nav-link:hover{ opacity:0.9; }
+
+.nav-link.active{
+  color:#fff;
+  position:relative;
+}
+
+.nav-link.active::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:-10px;
+  height:3px;
+  background:rgba(255,255,255,0.85);
+  border-radius:999px;
+}
+
+/* PAGE CONTENT */
+.page{ min-height:calc(100vh - 76px); }
+
+.content{
+  padding:92px 0 0 110px;
+  max-width:900px;
+}
+
+h1{
+  margin:0 0 34px 0;
+  font-size:72px;
+  font-weight:900;
+  letter-spacing:-1px;
+}
+
+.about-text{
+  margin:0;
+  font-size:20px;
+  line-height:1.7;
+  color:var(--muted);
+  max-width:760px;
+}
+
+@media (max-width:980px){
+  .nav{ gap:26px; }
+  .nav-link{ font-size:18px; }
+  h1{ font-size:52px; }
+  .content{ padding:64px 18px 0 18px; }
+}

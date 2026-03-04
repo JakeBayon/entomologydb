@@ -1,0 +1,387 @@
+
+/* Layout */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+.search-layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* LEFT PANEL */
+.filter-panel {
+  width: 300px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+.filter-header {
+  background: #76b476;      /* minty green */
+  color: white;
+
+  /* Center the "Search" text */
+  display: flex;
+  align-items: center;       /* vertical center */
+  justify-content: center;   /* horizontal center */
+
+  height: 120px;             /* gives it that big header feel */
+  padding: 0 20px;           /* keep side padding, no top/bottom padding */
+}
+
+.filter-header h2 {
+  margin: 0;
+}
+
+.filter-section {
+  border-bottom: 1px solid #eee;
+}
+
+.filter-title {
+  padding: 15px 20px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-title:hover {
+  background: #f0f0f0;
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.arrow.rotate {
+  transform: rotate(180deg);
+}
+
+.filter-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding: 0 20px;
+}
+
+.filter-content.open {
+  max-height: 700px;
+  padding: 15px 20px;
+}
+
+.filter-content input,
+.filter-content select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.checkbox-text {
+  flex: 0 0 65%;  /* text area width */
+}
+
+.checkbox-box {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+/* RIGHT PANEL */
+.results-panel {
+  flex: 1;
+  padding: 40px;
+}
+
+.results-placeholder {
+  background: white;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.location-group {
+  margin-bottom: 22px;   /* space between groups */
+}
+
+.location-group input,
+.location-group select {
+  margin-bottom: 8px;    /* small spacing inside group */
+}
+
+/* Cards grid on the right */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 26px;
+}
+
+/* Individual species card */
+.species-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 18px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 120px;
+}
+
+.species-info h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+}
+
+.sci-name {
+  margin: 0 0 12px 0;
+  color: #555;
+}
+
+.learn-more {
+  color: #111;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.learn-more:hover {
+  text-decoration: underline;
+}
+
+/* Default/loading image */
+.species-img {
+  width: 120px;
+  height: 90px;
+  object-fit: contain; /* keeps logo nicely centered */
+  opacity: 0.9;
+}
+
+/* Responsive: 1 column on smaller screens */
+@media (max-width: 900px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Species Page ---------- */
+
+.topbar {
+  height: 64px;
+  background: #76b476;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+}
+
+.topbar-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.topbar-link:hover {
+  text-decoration: underline;
+}
+
+.topbar-spacer {
+  flex: 1;
+}
+
+.species-page {
+  max-width: 1100px;
+  margin: 28px auto 60px auto;
+  padding: 0 24px;
+}
+
+.species-hero {
+  text-align: center;
+  margin: 18px 0 18px 0;
+}
+
+.species-title {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 800;
+}
+
+.species-subtitle {
+  margin: 10px 0 0 0;
+  color: #666;
+  font-size: 16px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 22px 0 20px 0;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 12px 14px;
+  border-bottom: 3px solid transparent;
+  color: #333;
+}
+
+.tab-btn.is-active {
+  border-bottom-color: #76b476;
+  color: #111;
+}
+
+/* Panels */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.is-active {
+  display: block;
+}
+
+.panel-card {
+  background: white;
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.panel-title {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+}
+
+/* Taxon info grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 14px 18px;
+}
+
+.info-item {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fafafa;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+}
+
+/* Images */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.image-tile {
+  margin: 0;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 14px;
+  background: #fafafa;
+  text-align: center;
+}
+
+.image-tile img {
+  width: 100%;
+  height: 160px;
+  object-fit: contain;
+  opacity: 0.95;
+}
+
+.image-tile figcaption {
+  margin-top: 10px;
+  color: #666;
+  font-size: 13px;
+}
+
+/* Specimens + Events list-table */
+.list-table {
+  width: 100%;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.list-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr 1fr 140px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid #eee;
+  background: white;
+}
+
+.list-row:first-child {
+  border-top: 0;
+}
+
+.list-head {
+  background: #f7f7f7;
+  font-weight: 800;
+  color: #333;
+}
+
+@media (max-width: 900px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  .image-grid {
+    grid-template-columns: 1fr;
+  }
+  .list-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px; /* helps prevent squishing */
+}
+
+.data-table th,
+.data-table td {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  text-align: left;
+  white-space: nowrap; /* keeps clean columns */
+}
+
+.data-table thead th {
+  background: rgba(0,0,0,0.03);
+  font-weight: 700;
+}

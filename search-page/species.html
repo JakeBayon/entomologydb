@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Species | BruchinDB</title>
+
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+
+  <!-- Top bar (matches your mint theme) -->
+  <header class="topbar">
+    <a class="topbar-link" href="./index.html">← Back to Search</a>
+    <div class="topbar-spacer"></div>
+  </header>
+
+  <main class="species-page">
+
+    <!-- Centered species title like your inspiration -->
+    <div class="species-hero">
+      <h1 class="species-title">Acanthoscelides obtectus</h1>
+      <p class="species-subtitle">230 specimens documented</p>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tabs" aria-label="Species sections">
+      <button class="tab-btn is-active" data-tab="taxon" aria-selected="true" role="tab">
+        Taxonomic Information
+      </button>
+      <button class="tab-btn" data-tab="images" aria-selected="false" role="tab">
+        Images
+      </button>
+      <button class="tab-btn" data-tab="specimens" aria-selected="false" role="tab">
+        Specimens
+      </button>
+      <button class="tab-btn" data-tab="events" aria-selected="false" role="tab">
+        Events
+      </button>
+    </nav>
+
+    <!-- Tab panels -->
+    <section class="tab-panel is-active" id="taxon" role="tabpanel">
+      <div class="panel-card">
+        <h2 class="panel-title">Taxonomic Information</h2>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Kingdom</div>
+            <div class="info-value">Animalia</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Phylum</div>
+            <div class="info-value">Arthropoda</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Class</div>
+            <div class="info-value">Insecta</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Order</div>
+            <div class="info-value">Coleoptera</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Family</div>
+            <div class="info-value">Chrysomelidae</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Subfamily</div>
+            <div class="info-value">Bruchinae</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Genus</div>
+            <div class="info-value">Acanthoscelides</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Species</div>
+            <div class="info-value">obtectus</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="images" role="tabpanel">
+      <div class="panel-card">
+        <h2 class="panel-title">Images</h2>
+
+        <div class="image-grid">
+          <figure class="image-tile">
+            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
+            <figcaption>Placeholder image</figcaption>
+          </figure>
+
+          <figure class="image-tile">
+            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
+            <figcaption>Placeholder image</figcaption>
+          </figure>
+
+          <figure class="image-tile">
+            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
+            <figcaption>Placeholder image</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="specimens" role="tabpanel">
+      <div class="panel-card">
+        <h2 class="panel-title">Specimens</h2>
+
+        <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Specimen ID</th>
+                <th>Sex</th>
+                <th>Stage</th>
+                <th>Collection Method</th>
+                <th>Determined By</th>
+                <th>Locality</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <!-- placeholder rows -->
+            <tr>
+                <td>BRU-000123</td>
+                <td>Male</td>
+                <td>Adult</td>
+                <td>Hand Collection</td>
+                <td>G. Morse</td>
+                <td>San Diego, California, USA</td>
+            </tr>
+
+            <tr>
+                <td>BRU-000124</td>
+                <td>Female</td>
+                <td>Adult</td>
+                <td>Light Trap</td>
+                <td>J. Bayon</td>
+                <td>Jalisco, Mexico</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+    </section>
+
+    <!-- Events Tab -->
+    <section class="tab-panel" id="events">
+    <div class="panel-card">
+        <h2>Events</h2>
+
+        <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Country</th>
+                <th>Province</th>
+                <th>County</th>
+                <th>Locality</th>
+                <th>Elevation (m)</th>
+                <th>Date</th>
+                <th>Collector</th>
+                <th>Specimens</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <!-- filler rows for now -->
+            <tr>
+                <td>USA</td>
+                <td>California</td>
+                <td>San Diego</td>
+                <td>Mission Trails Regional Park</td>
+                <td>120</td>
+                <td>1998-06-12</td>
+                <td>G. Morse</td>
+                <td>3</td>
+            </tr>
+
+            <tr>
+                <td>Mexico</td>
+                <td>Oaxaca</td>
+                <td>—</td>
+                <td>Near Mitla</td>
+                <td>1650</td>
+                <td>2001-08-04</td>
+                <td>J. Bayon</td>
+                <td>1</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+    </div>
+    </section>
+
+  </main>
+
+  <script src="./species.js"></script>
+</body>
+</html>
