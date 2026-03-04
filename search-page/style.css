@@ -1,4 +1,3 @@
-
 /* Layout */
 body {
   margin: 0;
@@ -20,7 +19,7 @@ body {
 }
 
 .filter-header {
-  background: #76b476;      /* minty green */
+  background: #7688b1;      /* minty green */
   color: white;
 
   /* Center the "Search" text */
