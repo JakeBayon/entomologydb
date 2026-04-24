@@ -65,7 +65,21 @@ async function loadLocations() {
   if (locationsData) return locationsData;
   try {
     const res = await fetch('../shared/locations.json');
-    locationsData = await res.json();
+    const raw = await res.json();
+    // Trim and clean all location strings
+    const clean = (s) => s.replace(/[\x00-\x1f]/g, '').trim();
+    raw.countries = [...new Set(raw.countries.map(clean).filter(Boolean))].sort();
+    for (const key of Object.keys(raw.provincesByCountry)) {
+      const cleanKey = clean(key);
+      const vals = [...new Set(raw.provincesByCountry[key].map(clean).filter(Boolean))].sort();
+      if (cleanKey !== key) {
+        delete raw.provincesByCountry[key];
+        raw.provincesByCountry[cleanKey] = vals;
+      } else {
+        raw.provincesByCountry[key] = vals;
+      }
+    }
+    locationsData = raw;
     return locationsData;
   } catch (err) {
     console.error('Failed to load locations:', err);
@@ -82,8 +96,8 @@ function setupAutocomplete(input, suggestionsEl, chipsEl, getOptions, selectedSe
       return;
     }
     const options = getOptions().filter(
-      (opt) => opt.toLowerCase().includes(query) && !selectedSet.has(opt)
-    );
+      (opt) => opt.toLowerCase().startsWith(query) && !selectedSet.has(opt)
+    ).sort();
     if (options.length === 0) {
       suggestionsEl.style.display = 'none';
       return;
@@ -93,15 +107,48 @@ function setupAutocomplete(input, suggestionsEl, chipsEl, getOptions, selectedSe
     ).join('');
     suggestionsEl.style.display = 'block';
     suggestionsEl.querySelectorAll('.autocomplete-item').forEach((item, idx) => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
         selectedSet.add(options[idx]);
-        input.value = '';
-        suggestionsEl.innerHTML = '';
-        suggestionsEl.style.display = 'none';
+        item.classList.add('selected');
         renderChipList(chipsEl, selectedSet, onChange);
-        if (onChange) onChange();
+        if (e.ctrlKey || e.metaKey) {
+          // Keep open, re-render options
+          input.dispatchEvent(new Event('input'));
+        } else {
+          input.value = '';
+          suggestionsEl.innerHTML = '';
+          suggestionsEl.style.display = 'none';
+          if (onChange) onChange();
+        }
       });
     });
+  });
+  input.addEventListener('focus', () => {
+    if (!input.value.trim()) {
+      input.dispatchEvent(new Event('input'));
+      // Force show with empty query showing first results
+      const options = getOptions().filter((opt) => !selectedSet.has(opt)).sort().slice(0, 50);
+      if (options.length > 0) {
+        suggestionsEl.innerHTML = options.map(
+          (opt) => `<div class="autocomplete-item">${escapeHtml(opt)}</div>`
+        ).join('');
+        suggestionsEl.style.display = 'block';
+        suggestionsEl.querySelectorAll('.autocomplete-item').forEach((item, idx) => {
+          item.addEventListener('click', (e) => {
+            selectedSet.add(options[idx]);
+            renderChipList(chipsEl, selectedSet, onChange);
+            if (e.ctrlKey || e.metaKey) {
+              input.dispatchEvent(new Event('input'));
+            } else {
+              input.value = '';
+              suggestionsEl.innerHTML = '';
+              suggestionsEl.style.display = 'none';
+              if (onChange) onChange();
+            }
+          });
+        });
+      }
+    }
   });
   input.addEventListener('blur', () => {
     setTimeout(() => suggestionsEl.style.display = 'none', 200);
@@ -166,22 +213,29 @@ function renderChipList(container, selectedSet, onChange) {
 })();
 
 function renderSuggestions(query) {
-  if (!query) { sciNameSuggestions.innerHTML = ''; return; }
-  const q = query.toLowerCase();
+  const q = (query || '').toLowerCase();
   const matches = allSpeciesCache
     .filter((s) => !selectedSpeciesIds.has(s.Species_ID))
-    .filter((s) => s.Full_name.toLowerCase().includes(q) || s.Genus.toLowerCase().includes(q))
-    .slice(0, 8);
+    .filter((s) => !q || s.Full_name.toLowerCase().startsWith(q) || s.Genus.toLowerCase().startsWith(q))
+    .sort((a, b) => a.Full_name.localeCompare(b.Full_name))
+    .slice(0, 50);
+  if (matches.length === 0) { sciNameSuggestions.innerHTML = ''; return; }
   sciNameSuggestions.innerHTML = matches.map((s) =>
     `<div class="suggestion-item" data-id="${s.Species_ID}"><em>${escapeHtml(s.Genus)} ${escapeHtml(s.Species)}</em></div>`
   ).join('');
   sciNameSuggestions.querySelectorAll('.suggestion-item').forEach((el) => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
       selectedSpeciesIds.add(el.dataset.id);
-      sciNameInput.value = '';
-      sciNameSuggestions.innerHTML = '';
+      el.classList.add('selected');
       renderChips();
-      runSearch();
+      if (e.ctrlKey || e.metaKey) {
+        // Keep dropdown open, re-render without the selected item
+        renderSuggestions(sciNameInput.value);
+      } else {
+        sciNameInput.value = '';
+        sciNameSuggestions.innerHTML = '';
+        runSearch();
+      }
     });
   });
 }
@@ -204,10 +258,6 @@ function renderChips() {
       runSearch();
     });
   });
-}
-
-if (sciNameInput) {
-  sciNameInput.addEventListener('input', (e) => renderSuggestions(e.target.value));
 }
 
 if (urlParams.get('localityId')) {
@@ -384,15 +434,20 @@ function getFilters() {
 // ============================================================
 
 function renderLoading() {
-  cardsGrid.innerHTML = `<div class="results-message">Loading...</div>`;
+  cardsGrid.innerHTML = `<div class="results-message"><div class="loading-spinner"></div>Searching FileMaker database...</div>`;
+}
+
+function renderError(message) {
+  cardsGrid.innerHTML = `<div class="results-message error">
+    <p>Could not load results</p>
+    <p class="error-detail">${escapeHtml(message)}</p>
+    <p class="error-hint">This usually means FileMaker Server is unreachable. Check that Dr. Morse's lab Mac is on and connected.</p>
+    <button onclick="location.reload()" class="retry-btn">Retry</button>
+  </div>`;
 }
 
 function renderEmpty() {
   cardsGrid.innerHTML = `<div class="results-message">No species match your filters.</div>`;
-}
-
-function renderError(message) {
-  cardsGrid.innerHTML = `<div class="results-message error">Error loading results: ${message}</div>`;
 }
 
 function renderCards(species) {
@@ -416,6 +471,17 @@ function renderCards(species) {
       />
     </a>
   `).join('');
+  const shouldRestore = sessionStorage.getItem('restoreScroll') || sessionStorage.getItem('searchScroll');
+  if (shouldRestore) {
+    const savedScroll = sessionStorage.getItem('searchScroll');
+    if (savedScroll) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(savedScroll, 10));
+      }, 50);
+    }
+    sessionStorage.removeItem('restoreScroll');
+    sessionStorage.removeItem('searchScroll');
+  }
 }
 
 function escapeHtml(str) {
@@ -577,7 +643,6 @@ function renderPagination(totalPages) {
   });
 }
 
-
 // ============================================================
 // EVENT HANDLERS
 // ============================================================
@@ -588,6 +653,16 @@ if (searchBtn) {
     runSearch();
   });
 }
+
+// Enter key triggers search
+document.querySelector('.filter-panel')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+    e.preventDefault();
+    currentPage = 1;
+    runSearch();
+  }
+});
+// Tribe dropdown change is picked up when user clicks Search
 
 if (resetBtn) {
   resetBtn.addEventListener('click', () => {
@@ -631,4 +706,246 @@ if (sortSelect) {
 // Restore state from URL, then run search
 filtersFromUrl();
 updateBanner();
-runSearch(true);
+const hasUrlFilters = window.location.search.length > 0;
+runSearch(!hasUrlFilters);
+
+// Save scroll position when clicking a species card
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.species-card');
+  if (card) {
+    sessionStorage.setItem('searchScroll', String(window.scrollY));
+    sessionStorage.setItem('searchUrl', window.location.search);
+    sessionStorage.setItem('searchScrollUrl', window.location.pathname + window.location.search);
+  }
+});
+
+// ============================================================
+// ACTIVE FILTERS DISPLAY
+// ============================================================
+
+function renderActiveFilters() {
+  const container = document.getElementById('active-filters');
+  if (!container) return;
+
+  const chips = [];
+  if (tribeSelect?.value) chips.push({ label: `Tribe: ${tribeSelect.value}`, type: 'tribe' });
+  [...selectedCountries].forEach((c) => chips.push({ label: c, type: 'country', value: c }));
+  [...selectedProvinces].forEach((p) => chips.push({ label: p, type: 'province', value: p }));
+  [...selectedLocalities].forEach((l) => chips.push({ label: l, type: 'locality', value: l }));
+  [...selectedSpeciesIds].forEach((id) => {
+    const s = allSpeciesCache.find((x) => x.Species_ID === id);
+    if (s) chips.push({ label: `${s.Genus} ${s.Species}`, type: 'species', value: id });
+  });
+
+  if (chips.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="active-filters-label">Active filters:</div>
+    <div class="active-filters-chips">
+      ${chips.map((c) => `
+        <span class="chip active-chip">${escapeHtml(c.label)}
+          <button type="button" class="chip-x" data-type="${c.type}" data-value="${escapeHtml(c.value || '')}">x</button>
+        </span>
+      `).join('')}
+      <button type="button" class="clear-all-filters" id="clearAllFilters">Clear all</button>
+    </div>
+  `;
+
+  container.querySelectorAll('.chip-x').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type;
+      const value = btn.dataset.value;
+      if (type === 'tribe' && tribeSelect) tribeSelect.value = '';
+      if (type === 'country') selectedCountries.delete(value);
+      if (type === 'province') selectedProvinces.delete(value);
+      if (type === 'locality') selectedLocalities.delete(value);
+      if (type === 'species') { selectedSpeciesIds.delete(value); renderChips(); }
+      runSearch();
+    });
+  });
+
+  const clearAll = container.querySelector('#clearAllFilters');
+  if (clearAll) {
+    clearAll.addEventListener('click', () => {
+      document.getElementById('resetBtn')?.click();
+    });
+  }
+}
+
+// ============================================================
+// RECENTLY VIEWED (last 10, show 5 with scroll)
+// ============================================================
+
+function renderRecentlyViewed() {
+  const container = document.getElementById('recently-viewed-list');
+  if (!container) return;
+  const recent = JSON.parse(localStorage.getItem('recentSpecies') || '[]');
+  if (recent.length === 0) {
+    container.innerHTML = '<p class="filter-hint">No species viewed yet.</p>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="recent-scroll">
+      ${recent.map((r) => `
+        <a class="recent-sidebar-item" href="./species.html?id=${encodeURIComponent(r.id)}">
+          <em>${escapeHtml(r.name)}</em>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+// SAVED QUERIES (inline naming)
+// ============================================================
+
+function renderSavedQueries() {
+  const container = document.getElementById('saved-queries-list');
+  if (!container) return;
+  const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+  if (saved.length === 0) {
+    container.innerHTML = '<p class="filter-hint">No saved queries yet.</p>';
+    return;
+  }
+  container.innerHTML = saved.map((q, idx) => `
+    <div class="saved-query-item">
+      <div class="saved-query-left">
+        <a class="saved-query-link" href="./index.html?${q.params}">${escapeHtml(q.name)}</a>
+        <div class="saved-query-details">${escapeHtml(decodeFilterParams(q.params))}</div>
+      </div>
+      <button type="button" class="saved-query-delete" data-idx="${idx}">x</button>
+    </div>
+  `).join('');
+  container.querySelectorAll('.saved-query-delete').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+      saved.splice(parseInt(btn.dataset.idx, 10), 1);
+      localStorage.setItem('savedQueries', JSON.stringify(saved));
+      renderSavedQueries();
+    });
+  });
+}
+
+function decodeFilterParams(paramStr) {
+  const p = new URLSearchParams(paramStr);
+  const parts = [];
+  if (p.get('tribe')) parts.push(`Tribe: ${p.get('tribe')}`);
+  if (p.get('countries')) parts.push(`Countries: ${p.get('countries').replace(/\|/g, ', ')}`);
+  if (p.get('provinces')) parts.push(`Provinces: ${p.get('provinces').replace(/\|/g, ', ')}`);
+  if (p.get('sort') && p.get('sort') !== 'az') parts.push(`Sort: ${p.get('sort')}`);
+  return parts.join(' / ') || 'All species';
+}
+
+// Save query button (inline naming)
+const saveQueryBtn = document.getElementById('saveQueryBtn');
+const saveQueryInline = document.getElementById('save-query-inline');
+const saveQueryName = document.getElementById('saveQueryName');
+const saveQueryConfirm = document.getElementById('saveQueryConfirm');
+const saveQueryCancel = document.getElementById('saveQueryCancel');
+
+if (saveQueryBtn && saveQueryInline) {
+  saveQueryBtn.addEventListener('click', () => {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    if (!params.toString()) return;
+
+    const parts = [];
+    if (tribeSelect?.value) parts.push(tribeSelect.value);
+    if (selectedCountries.size > 0) parts.push([...selectedCountries].join(', '));
+    if (selectedProvinces.size > 0) parts.push([...selectedProvinces].join(', '));
+    saveQueryName.value = parts.length > 0 ? parts.join(' / ') : 'My Query';
+
+    saveQueryBtn.style.display = 'none';
+    saveQueryInline.style.display = 'flex';
+    saveQueryName.focus();
+    saveQueryName.select();
+  });
+
+  saveQueryConfirm.addEventListener('click', () => {
+    const name = saveQueryName.value.trim();
+    if (!name) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    const saved = JSON.parse(localStorage.getItem('savedQueries') || '[]');
+    saved.unshift({ name, params: params.toString() });
+    localStorage.setItem('savedQueries', JSON.stringify(saved.slice(0, 10)));
+    renderSavedQueries();
+    saveQueryInline.style.display = 'none';
+    saveQueryBtn.style.display = '';
+  });
+
+  saveQueryCancel.addEventListener('click', () => {
+    saveQueryInline.style.display = 'none';
+    saveQueryBtn.style.display = '';
+  });
+
+  saveQueryName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveQueryConfirm.click();
+    if (e.key === 'Escape') saveQueryCancel.click();
+  });
+}
+
+// ============================================================
+// CARD CLICK: save scroll + recently viewed
+// ============================================================
+
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.species-card');
+  if (card) {
+    sessionStorage.setItem('searchScroll', String(window.scrollY));
+    sessionStorage.setItem('searchUrl', window.location.search);
+    const href = card.getAttribute('href');
+    const id = new URLSearchParams(href.split('?')[1]).get('id');
+    const name = card.querySelector('h3')?.textContent?.trim() || '';
+    if (id && name) {
+      const recent = JSON.parse(localStorage.getItem('recentSpecies') || '[]');
+      const filtered = recent.filter((r) => r.id !== id);
+      filtered.unshift({ id, name });
+      localStorage.setItem('recentSpecies', JSON.stringify(filtered.slice(0, 10)));
+    }
+  }
+});
+
+// ============================================================
+// SEARCH INPUT: show results on focus
+// ============================================================
+
+if (sciNameInput) {
+  sciNameInput.addEventListener('input', (e) => renderSuggestions(e.target.value));
+  sciNameInput.addEventListener('focus', () => renderSuggestions(sciNameInput.value));
+  sciNameInput.addEventListener('blur', () => {
+    setTimeout(() => { sciNameSuggestions.innerHTML = ''; }, 100);
+  });
+}
+
+// Back to top button
+const backToTop = document.getElementById('backToTop');
+if (backToTop) {
+  const mainView = document.querySelector('.main-view');
+  if (mainView) {
+    mainView.addEventListener('scroll', () => {
+      backToTop.classList.toggle('visible', mainView.scrollTop > 400);
+    });
+  }
+  backToTop.addEventListener('click', () => {
+    const mainView = document.querySelector('.main-view');
+    if (mainView) mainView.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+// Call renderActiveFilters after every search
+const origRenderPage = renderPage;
+renderPage = function() {
+  origRenderPage();
+  renderActiveFilters();
+};
+
+renderRecentlyViewed();
+renderSavedQueries();

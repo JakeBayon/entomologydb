@@ -170,6 +170,15 @@ export async function searchSpecies(filters = {}) {
     };
   });
 
+  // Exclude subspecies and varieties — Morse wants 1,714 species only
+  mapped = mapped.filter((s) => {
+    if (s.Subspecies) return false;
+    if (s.Species.includes(' var.')) return false;
+    if (s.Species.includes(' subsp.')) return false;
+    if (s.Species.includes(' f.')) return false;
+    return true;
+  });
+
   if (speciesNameAllowlist) {
     mapped = mapped.filter((s) => {
       const speciesNamePrefix = `${s.Genus} ${s.Species}`;
