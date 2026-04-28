@@ -136,7 +136,15 @@ export async function searchSpecies(filters = {}) {
   } else {
     queries = [...genusFilterSet].map((genus) => {
       const q = { Genus: `==${genus}`, Validity: 'Valid name' };
-      if (filters.scientificName) q.Species = `*${filters.scientificName}*`;
+      if (filters.scientificName) {
+        const fmQuery = filters.scientificName.replace(/\?/g, '@');
+        // If user already included wildcards, use as-is. Otherwise wrap in *
+        if (fmQuery.includes('*')) {
+          q.Species = fmQuery;
+        } else {
+          q.Species = `*${fmQuery}*`;
+        }
+      }
       return q;
     });
   }

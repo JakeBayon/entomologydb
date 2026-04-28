@@ -1951,3 +1951,136 @@ main {
   background: var(--green-dark);
   transform: translateY(-2px);
 }
+
+.event-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.event-row:hover {
+  background: #f0f7f0;
+}
+
+.event-active {
+  background: #e8f3e8 !important;
+  border-left: 3px solid #76b476;
+}
+
+.no-coords-section {
+  margin-top: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.no-coords-header {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafafa;
+}
+
+.no-coords-header:hover {
+  background: #f0f0f0;
+}
+
+.no-coords-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #555;
+  border-top: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.no-coords-item:hover {
+  background: #f0f7f0;
+}
+
+.no-coords-active {
+  background: #e8f3e8 !important;
+  border-left: 3px solid #76b476;
+}
+
+.no-coords-row {
+  border-left: 3px solid #f0c040;
+}
+
+.no-coords-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #a08020;
+  background: #fef9e7;
+  border: 1px solid #f0d060;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.event-chip {
+  background: #7789AD !important;
+  color: white !important;
+  border: none !important;
+}
+
+.event-country-group {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.event-country-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #eef4ee;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 3px solid #76b476;
+}
+
+.event-country-header:hover {
+  background: #f0f7f0;
+}
+
+.event-country-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #333;
+}
+
+.event-country-count {
+  font-size: 12px;
+  color: #888;
+  margin-left: auto;
+}
+
+.event-country-table {
+  border-top: 1px solid #eee;
+}
+
+.event-country-table th:first-child,
+.event-country-table td:first-child {
+  padding-left: 16px;
+}
+
+.event-country-table thead th {
+  font-size: 13px;
+  padding: 12px 16px;
+  background: #f8f8f8;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

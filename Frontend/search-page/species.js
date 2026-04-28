@@ -10,6 +10,7 @@ const breadcrumbEl = document.getElementById('breadcrumb');
 const breadcrumbCurrentEl = document.getElementById('breadcrumb-current');
 let currentSpeciesData = null;
 let selectedLocality = null;
+let selectedEvent = null;
 
 // Specimen filter state (declared early so renderSpecimens can use them)
 const specimenFilterMedium = new Set();
@@ -19,6 +20,7 @@ let specimenFilterHasImage = false;
 let specimenFilterYearMin = '';
 let specimenFilterYearMax = '';
 let specimenPage = 1;
+let specimenIncludeNoCoords = true;
 const SPECIMENS_PER_PAGE = 10;
 
 function saveSpecimenFilters() {
@@ -112,6 +114,18 @@ async function loadSpecies() {
 
 function renderSpecies(s) {
   currentSpeciesData = s;
+  // Add hosts to shared index for search page filtering
+  if (s.hosts && s.hosts.length > 0) {
+    try {
+      const hostIndex = JSON.parse(localStorage.getItem('hostIndex') || '[]');
+      for (const h of s.hosts) {
+        if (!hostIndex.find((x) => x.speciesId === s.Species_ID && x.name === h.name)) {
+          hostIndex.push({ speciesId: s.Species_ID, name: h.name, tribe: h.tribe });
+        }
+      }
+      localStorage.setItem('hostIndex', JSON.stringify(hostIndex));
+    } catch {}
+  }
   titleEl.innerHTML = `<em>${escapeHtml(s.Full_name)}</em>`;
   if (s.Author) {
     titleEl.innerHTML += ` ${escapeHtml(s.Author)}${s.Year ? `, ${escapeHtml(s.Year)}` : ''}`;
@@ -562,20 +576,70 @@ function renderSpecimens(s) {
       if (specimenFilterYearMin && year < parseInt(specimenFilterYearMin, 10)) return false;
       if (specimenFilterYearMax && year > parseInt(specimenFilterYearMax, 10)) return false;
     }
+    if (selectedEvent) {
+      const evLoc = (sp.locality_with_date || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const allMatch = selectedEvent.every((part) =>
+        evLoc.includes(part.toLowerCase().trim())
+      );
+      if (!allMatch) return false;
+    }
     if (selectedLocality) {
-      const loc = sp.locality_with_date || '';
-      if (selectedLocality instanceof Set) {
+      const loc = (sp.locality_with_date || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      
+      // Check if this specimen has coordinates
+      const hasCoords = currentSpeciesData?.geolib?.some((g) => {
+        const coords = (g.coordinates || '').trim();
+        const locality = g.locality || '';
+        return coords && loc.includes(locality.toLowerCase());
+      });
+
+      // If no coords and toggle is on, include it alongside bounding box results
+      if (!hasCoords && specimenIncludeNoCoords && selectedLocality instanceof Set) {
+        // Keep it - no coords specimens pass through when bounding box is active
+      } else if (selectedLocality instanceof Set) {
         let match = false;
         for (const name of selectedLocality) {
-          if (loc.includes(name)) { match = true; break; }
+          const clean = name.toLowerCase().replace(/\s+/g, ' ').trim();
+          if (clean && (loc.includes(clean) || clean.includes(loc.split(',')[0]?.trim()))) { match = true; break; }
         }
         if (!match) return false;
       } else {
-        if (!loc.includes(selectedLocality)) return false;
+        const clean = selectedLocality.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (clean && !loc.includes(clean) && !clean.includes(loc.split(',')[0]?.trim())) return false;
       }
+    }
+    if (!specimenIncludeNoCoords && currentSpeciesData?.geolib) {
+      const loc = sp.locality_with_date || '';
+      const hasCoords = currentSpeciesData.geolib.some((g) => {
+        const coords = (g.coordinates || '').trim();
+        const locality = g.locality || '';
+        return coords && loc.includes(locality);
+      });
+      if (!hasCoords) return false;
     }
     return true;
   });
+
+  // Sort no-coords specimens to the end when location filters are active
+  if (selectedLocality || specimenFilterCountry.size > 0) {
+    filtered.sort((a, b) => {
+      const locA = (a.locality_with_date || '').toLowerCase();
+      const locB = (b.locality_with_date || '').toLowerCase();
+      const aCoordsMatch = currentSpeciesData?.geolib?.some((g) => {
+        const coords = (g.coordinates || '').trim();
+        const locality = (g.locality || '').toLowerCase();
+        return coords && locA.includes(locality);
+      });
+      const bCoordsMatch = currentSpeciesData?.geolib?.some((g) => {
+        const coords = (g.coordinates || '').trim();
+        const locality = (g.locality || '').toLowerCase();
+        return coords && locB.includes(locality);
+      });
+      if (aCoordsMatch && !bCoordsMatch) return -1;
+      if (!aCoordsMatch && bCoordsMatch) return 1;
+      return 0;
+    });
+  }
 
   const totalPages = Math.ceil(filtered.length / SPECIMENS_PER_PAGE);
   if (specimenPage > totalPages) specimenPage = Math.max(1, totalPages);
@@ -616,11 +680,14 @@ function renderSpecimens(s) {
           <input type="checkbox" id="filter-has-image" ${specimenFilterHasImage ? 'checked' : ''} />
           <span>Has image</span>
         </label>
+        <label class="specimen-toggle">
+          <input type="checkbox" id="filter-no-coords" ${specimenIncludeNoCoords ? 'checked' : ''} />
+          <span>Include specimens without coordinates</span>
+        </label>
         <span class="specimen-count-label">${filtered.length} of ${specimens.length}</span>
-        ${selectedLocality ? `<button class="clear-map-filter" id="clearMapFilter">Clear map filter x</button>` : ''}
       </div>
     </div>
-    ${allChips.length > 0 || selectedLocality ? `
+    ${allChips.length > 0 || selectedLocality || selectedEvent ? `
       <div class="specimen-chips">
         ${allChips.map((chip) => `
           <span class="chip">${escapeHtml(chip.value)}
@@ -628,15 +695,21 @@ function renderSpecimens(s) {
           </span>
         `).join('')}
         ${selectedLocality ? `<span class="chip map-chip">Map filter<button type="button" class="chip-x" id="clearMapChip">x</button></span>` : ''}
+        ${selectedEvent ? `<span class="chip event-chip">Event filter<button type="button" class="chip-x" id="clearEventChip">x</button></span>` : ''}
       </div>
     ` : ''}
     ${pageItems.map((sp) => {
       const loc = sp.locality_with_date || 'Unknown locality';
       const museum = sp.stored || '';
+      const hasCoords = currentSpeciesData?.geolib?.some((g) => {
+        const coords = (g.coordinates || '').trim();
+        const locality = g.locality || '';
+        return coords && loc.includes(locality);
+      });
       return `
-        <div class="specimen-row" data-href="./specimen.html?id=${encodeURIComponent(sp.id)}">
+        <div class="specimen-row ${hasCoords ? '' : 'no-coords-row'}" data-href="./specimen.html?id=${encodeURIComponent(sp.id)}">
           <div class="specimen-row-left">
-            <div class="specimen-row-main">${escapeHtml(loc)}</div>
+            <div class="specimen-row-main">${escapeHtml(loc)}${hasCoords ? '' : ' <span class="no-coords-badge">No coords</span>'}</div>
             ${museum ? `<div class="specimen-row-sub">${escapeHtml(museum)}</div>` : ''}
           </div>
           <span class="specimen-row-arrow">></span>
@@ -679,6 +752,8 @@ function renderSpecimens(s) {
 
   const hasImageCheck = container.querySelector('#filter-has-image');
   if (hasImageCheck) { hasImageCheck.addEventListener('change', () => { specimenFilterHasImage = hasImageCheck.checked; specimenPage = 1; renderSpecimens(currentSpeciesData); }); }
+  const noCoordsCheck = container.querySelector('#filter-no-coords');
+  if (noCoordsCheck) { noCoordsCheck.addEventListener('change', () => { specimenIncludeNoCoords = noCoordsCheck.checked; specimenPage = 1; renderSpecimens(currentSpeciesData); }); }
 
   container.querySelectorAll('.chip-x').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -692,10 +767,33 @@ function renderSpecimens(s) {
     });
   });
 
-  const clearMapChip = container.querySelector('#clearMapChip');
+  const clearMapChip = container.querySelector('.map-chip');
   if (clearMapChip) {
-    clearMapChip.addEventListener('click', () => { selectedLocality = null; specimenPage = 1; renderSpecimens(currentSpeciesData); });
+    clearMapChip.addEventListener('click', () => {
+      selectedLocality = null;
+      specimenPage = 1;
+      // Clear bounding box on the map too
+      if (mapInstance) {
+        try {
+          const src = mapInstance.getSource('bbox');
+          if (src) src.setData({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[]] } });
+        } catch {}
+      }
+      renderSpecimens(currentSpeciesData);
+    });
   }
+
+  const clearEventChip = container.querySelector('.event-chip');
+  if (clearEventChip) {
+    clearEventChip.addEventListener('click', () => {
+      selectedEvent = null;
+      specimenPage = 1;
+      renderSpecimens(currentSpeciesData);
+      // Clear event row highlight
+      document.querySelectorAll('.event-row').forEach((r) => r.classList.remove('event-active'));
+    });
+  }
+  
 
   container.querySelectorAll('.specimen-row').forEach((row) => {
     row.addEventListener('click', () => { window.location.href = row.dataset.href; });
@@ -711,22 +809,110 @@ function renderSpecimens(s) {
 }
 
 function renderEvents(s) {
-  const tbody = document.querySelector('#events .data-table tbody');
-  if (!tbody) return;
+  const container = document.getElementById('events');
+  if (!container) return;
+  const tableWrap = container.querySelector('.table-wrap');
+  if (!tableWrap) return;
+
   if (!s.events.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>No collection events recorded</p><p class="empty-hint">Events will appear here as collection data is added.</p></div></td></tr>`;
+    tableWrap.innerHTML = `<div class="empty-state"><p>No collection events recorded</p><p class="empty-hint">Events will appear here as collection data is added.</p></div>`;
     return;
   }
-  tbody.innerHTML = s.events.map((e) => `
-    <tr>
-      <td>${escapeHtml(e.country)}</td>
-      <td>${escapeHtml(e.province)}</td>
-      <td>${escapeHtml(e.locality)}</td>
-      <td>${escapeHtml(e.elevation)}</td>
-      <td>${escapeHtml(e.coordinates)}</td>
-      <td>${escapeHtml(e.date)}</td>
-    </tr>
-  `).join('');
+
+  // Group events by country
+  const grouped = {};
+  s.events.forEach((e) => {
+    const country = e.country || 'Unknown';
+    if (!grouped[country]) grouped[country] = [];
+    grouped[country].push(e);
+  });
+
+  const countries = Object.keys(grouped).sort();
+
+  tableWrap.innerHTML = countries.map((country) => {
+    const events = grouped[country];
+    return `
+      <div class="event-country-group">
+        <div class="event-country-header" data-country="${escapeHtml(country)}">
+          <span class="event-country-name">${escapeHtml(country)}</span>
+          <span class="event-country-count">${events.length} event${events.length !== 1 ? 's' : ''}</span>
+          <span class="arrow">&#9662;</span>
+        </div>
+        <table class="data-table event-country-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Province</th>
+              <th>Locality</th>
+              <th>Elevation</th>
+              <th>Coordinates</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${events.map((e) => `
+              <tr class="event-row" data-locality="${escapeHtml(e.locality || '')}" data-country="${escapeHtml(e.country || '')}" data-province="${escapeHtml(e.province || '')}" data-coords="${escapeHtml(e.coordinates || '')}">
+                <td>${escapeHtml(e.province)}</td>
+                <td>${escapeHtml(e.locality)}</td>
+                <td>${escapeHtml(e.elevation)}</td>
+                <td>${escapeHtml(e.coordinates)}</td>
+                <td>${escapeHtml(e.date)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  // Toggle country groups
+  tableWrap.querySelectorAll('.event-country-header').forEach((header) => {
+    header.addEventListener('click', () => {
+      const table = header.nextElementSibling;
+      const arrow = header.querySelector('.arrow');
+      if (table) {
+        const isOpen = table.style.display !== 'none';
+        table.style.display = isOpen ? 'none' : '';
+        if (arrow) arrow.classList.toggle('rotate', !isOpen);
+      }
+    });
+  });
+
+  // Event row click -> filter specimens
+  tableWrap.querySelectorAll('.event-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const locality = row.dataset.locality;
+      const country = row.dataset.country;
+      const province = row.dataset.province;
+      const coords = row.dataset.coords;
+
+      const matchParts = [country, province, locality].filter(Boolean);
+      if (matchParts.length === 0) return;
+
+      selectedLocality = null;
+      selectedEvent = matchParts;
+      if (!coords || !coords.trim()) {
+        specimenIncludeNoCoords = true;
+      }
+      specimenPage = 1;
+      renderSpecimens(currentSpeciesData);
+
+      const specPanel = document.getElementById('specimens');
+      if (specPanel) {
+        const y = specPanel.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+
+      tableWrap.querySelectorAll('.event-row').forEach((r) => r.classList.remove('event-active'));
+      row.classList.add('event-active');
+
+      if (coords && mapInstance) {
+        const parsed = parseDMS(coords);
+        if (parsed) {
+          mapInstance.flyTo({ center: [parsed.lng, parsed.lat], zoom: 8, duration: 500 });
+        }
+      }
+    });
+  });
 }
 
 function renderHosts(s) {
@@ -751,11 +937,17 @@ let mapInstance = null;
 
 function parseDMS(coordString) {
   if (!coordString) return null;
-  const match = coordString.match(/(\d+)\u00b0(\d+)?'?([NS]),\s*(\d+)\u00b0(\d+)?'?([EW])/);
+  
+  const match = coordString.match(/(\d+)\u00b0\s*(\d+)?['\u2032]?\s*(\d+\.?\d*)?['\u2032\u2033"]*\s*([NS])\s*,?\s*(\d+)\u00b0\s*(\d+)?['\u2032]?\s*(\d+\.?\d*)?['\u2032\u2033"]*\s*([EW])/);
   if (!match) return null;
-  const [, latDeg, latMin, latDir, lngDeg, lngMin, lngDir] = match;
-  let lat = parseInt(latDeg, 10) + (parseInt(latMin || 0, 10) / 60);
-  let lng = parseInt(lngDeg, 10) + (parseInt(lngMin || 0, 10) / 60);
+  
+  const [, latDeg, latMin, latSec, latDir, lngDeg, lngMin, lngSec, lngDir] = match;
+  let lat = parseInt(latDeg, 10) 
+    + (parseInt(latMin || 0, 10) / 60) 
+    + (parseFloat(latSec || 0) / 3600);
+  let lng = parseInt(lngDeg, 10) 
+    + (parseInt(lngMin || 0, 10) / 60) 
+    + (parseFloat(lngSec || 0) / 3600);
   if (latDir === 'S') lat = -lat;
   if (lngDir === 'W') lng = -lng;
   return { lat, lng };
@@ -798,6 +990,70 @@ function renderMap(s) {
   }
 
   const points = Object.values(locationMap);
+
+  // Find localities without coordinates
+  const noCoordLocalities = (s.geolib || []).filter((g) => {
+    const coords = g.coordinates || '';
+    return !coords.trim();
+  });
+
+  if (points.length === 0 && noCoordLocalities.length === 0) {
+    mapContainer.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    return;
+  }
+
+  // Show no-coords list
+  let noCoordsList = document.getElementById('no-coords-list');
+  if (!noCoordsList) {
+    noCoordsList = document.createElement('div');
+    noCoordsList.id = 'no-coords-list';
+    mapContainer.parentNode.appendChild(noCoordsList);
+  }
+
+  if (noCoordLocalities.length > 0) {
+    noCoordsList.innerHTML = `
+      <div class="no-coords-section">
+        <div class="no-coords-header" id="no-coords-toggle">
+          ${noCoordLocalities.length} localit${noCoordLocalities.length === 1 ? 'y' : 'ies'} without coordinates
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="no-coords-items" id="no-coords-items" style="display:none;">
+          ${noCoordLocalities.map((g) => {
+            const name = [g.country, g.province, g.locality].filter(Boolean).join(', ');
+            return `<div class="no-coords-item" data-locality="${escapeHtml(g.locality || '')}">${escapeHtml(name)}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('no-coords-toggle')?.addEventListener('click', () => {
+      const items = document.getElementById('no-coords-items');
+      const arrow = document.querySelector('#no-coords-toggle .arrow');
+      if (items) {
+        const isOpen = items.style.display !== 'none';
+        items.style.display = isOpen ? 'none' : 'block';
+        if (arrow) arrow.classList.toggle('rotate', !isOpen);
+      }
+    });
+
+    noCoordsList.querySelectorAll('.no-coords-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        selectedLocality = item.dataset.locality;
+        specimenPage = 1;
+        renderSpecimens(currentSpeciesData);
+        const specPanel = document.getElementById('specimens');
+        if (specPanel) {
+          const y = specPanel.getBoundingClientRect().top + window.scrollY - 100;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+        noCoordsList.querySelectorAll('.no-coords-item').forEach((i) => i.classList.remove('no-coords-active'));
+        item.classList.add('no-coords-active');
+      });
+    });
+  } else {
+    noCoordsList.innerHTML = '';
+  }
 
   if (points.length === 0) {
     mapContainer.style.display = 'none';

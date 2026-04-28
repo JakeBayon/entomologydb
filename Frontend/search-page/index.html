@@ -86,13 +86,9 @@
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter host plant..." />
-          <select>
-            <option value="">Select family</option>
-            <option>Fabaceae</option>
-            <option>Poaceae</option>
-            <option>Asteraceae</option>
-          </select>
+          <input type="text" id="host-search" placeholder="Search host plant..." autocomplete="off" />
+          <div id="host-suggestions" class="autocomplete-suggestions"></div>
+          <div id="host-chips" class="chip-list"></div>
         </div>
       </div>
 
@@ -161,8 +157,7 @@
           <select id="sortSelect" class="sort-select">
             <option value="az">Name (A-Z)</option>
             <option value="za">Name (Z-A)</option>
-            <option value="newest">Year (Newest)</option>
-            <option value="oldest">Year (Oldest)</option>
+            <option value="tribe">Tribe</option>
           </select>
         </div>
 
