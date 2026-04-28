@@ -28,6 +28,9 @@ const provinceInput = document.getElementById('province-input');
 const localityInput = document.getElementById('locality-input');
 const tribeSelect = document.getElementById('filter-tribe');
 const imagesOnlyCheckbox = document.getElementById('filter-images-only');
+const hostInput = document.getElementById('host-search');
+const hostSuggestions = document.getElementById('host-suggestions');
+const hostChips = document.getElementById('host-chips');
 
 
 // ============================================================
@@ -53,6 +56,7 @@ let locationsData = null;
 const selectedCountries = new Set();
 const selectedProvinces = new Set();
 const selectedLocalities = new Set();
+const selectedHosts = new Set();
 
 const countrySuggestions = document.getElementById('country-suggestions');
 const countryChips = document.getElementById('country-chips');
@@ -96,7 +100,11 @@ function setupAutocomplete(input, suggestionsEl, chipsEl, getOptions, selectedSe
       return;
     }
     const options = getOptions().filter(
-      (opt) => opt.toLowerCase().startsWith(query) && !selectedSet.has(opt)
+      (opt) => {
+        if (selectedSet.has(opt)) return false;
+        const words = opt.toLowerCase().split(/[\s,]+/);
+        return words.some((w) => w.startsWith(query));
+      }
     ).sort();
     if (options.length === 0) {
       suggestionsEl.style.display = 'none';
@@ -212,11 +220,64 @@ function renderChipList(container, selectedSet, onChange) {
   );
 })();
 
+// Host plant autocomplete
+let allHostsCache = JSON.parse(localStorage.getItem('hostIndex') || '[]');
+
+if (hostInput && hostSuggestions && hostChips) {
+  hostInput.addEventListener('input', () => {
+    const query = hostInput.value.trim().toLowerCase();
+    const uniqueHosts = [...new Set(allHostsCache.map((h) => h.name))].sort();
+    const matches = uniqueHosts.filter((h) => {
+      if (selectedHosts.has(h)) return false;
+      const words = h.toLowerCase().split(/[\s,]+/);
+      return !query || words.some((w) => w.startsWith(query)) || h.toLowerCase().startsWith(query);
+    }).slice(0, 10);
+    if (matches.length === 0) { hostSuggestions.style.display = 'none'; return; }
+    hostSuggestions.innerHTML = matches.map((h) =>
+      `<div class="autocomplete-item">${escapeHtml(h)}</div>`
+    ).join('');
+    hostSuggestions.style.display = 'block';
+    hostSuggestions.querySelectorAll('.autocomplete-item').forEach((item, idx) => {
+      item.addEventListener('click', (e) => {
+        selectedHosts.add(matches[idx]);
+        renderChipList(hostChips, selectedHosts);
+        if (e.ctrlKey || e.metaKey) {
+          hostInput.dispatchEvent(new Event('input'));
+        } else {
+          hostInput.value = '';
+          hostSuggestions.style.display = 'none';
+        }
+      });
+    });
+  });
+  hostInput.addEventListener('focus', () => hostInput.dispatchEvent(new Event('input')));
+  hostInput.addEventListener('blur', () => {
+    setTimeout(() => hostSuggestions.style.display = 'none', 200);
+  });
+}
+
+function wildcardMatch(text, pattern) {
+  const regex = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp('^' + regex, 'i').test(text);
+}
+
 function renderSuggestions(query) {
-  const q = (query || '').toLowerCase();
+  const q = (query || '').trim();
+  const hasWildcard = q.includes('*') || q.includes('?');
   const matches = allSpeciesCache
     .filter((s) => !selectedSpeciesIds.has(s.Species_ID))
-    .filter((s) => !q || s.Full_name.toLowerCase().startsWith(q) || s.Genus.toLowerCase().startsWith(q))
+    .filter((s) => {
+      if (!q) return true;
+      if (hasWildcard) {
+        return wildcardMatch(s.Full_name, q) || wildcardMatch(s.Genus, q);
+      }
+      const lower = q.toLowerCase();
+      const words = s.Full_name.toLowerCase().split(/\s+/);
+      return words.some((w) => w.startsWith(lower)) || s.Genus.toLowerCase().startsWith(lower);
+    })
     .sort((a, b) => a.Full_name.localeCompare(b.Full_name))
     .slice(0, 50);
   if (matches.length === 0) { sciNameSuggestions.innerHTML = ''; return; }
@@ -341,6 +402,9 @@ function filtersToUrl() {
   // Tribe
   if (tribeSelect?.value) url.searchParams.set('tribe', tribeSelect.value);
   else url.searchParams.delete('tribe');
+  // Scientific name text query
+  if (sciNameInput?.value?.trim()) url.searchParams.set('q', sciNameInput.value.trim());
+  else url.searchParams.delete('q');
   // Countries
   if (selectedCountries.size > 0) url.searchParams.set('countries', [...selectedCountries].join('|'));
   else url.searchParams.delete('countries');
@@ -369,6 +433,10 @@ function filtersFromUrl() {
   // Tribe
   const tribe = params.get('tribe');
   if (tribe && tribeSelect) tribeSelect.value = tribe;
+
+  // Scientific name text query
+  const q = params.get('q');
+  if (q && sciNameInput) sciNameInput.value = q;
 
   // Countries
   const countries = params.get('countries');
@@ -413,6 +481,7 @@ function filtersFromUrl() {
 
 function getFilters() {
   const filters = {
+    scientificName: sciNameInput?.value?.trim() || '',
     speciesIds: selectedSpeciesIds.size > 0 ? [...selectedSpeciesIds] : null,
     countries: selectedCountries.size > 0 ? [...selectedCountries] : null,
     countryVariants: locationsData?.countryVariants || {},
@@ -501,6 +570,7 @@ function escapeHtml(str) {
 
 function getFilterCacheKey(filters) {
   return JSON.stringify({
+    scientificName: filters.scientificName,
     speciesIds: filters.speciesIds,
     countries: filters.countries,
     provinces: filters.provinces,
@@ -536,6 +606,15 @@ async function runSearch(useCache = false) {
   try {
     const results = await searchSpecies(filters);
     lastResults = results;
+    // Client-side host filter
+    if (selectedHosts.size > 0) {
+      const hostSpeciesIds = new Set(
+        allHostsCache
+          .filter((h) => selectedHosts.has(h.name))
+          .map((h) => h.speciesId)
+      );
+      lastResults = lastResults.filter((s) => hostSpeciesIds.has(s.Species_ID));
+    }
     currentPage = 1;
     applySortToResults();
 
@@ -562,8 +641,7 @@ function applySortToResults() {
   lastResults.sort((a, b) => {
     if (mode === 'az') return a.Full_name.localeCompare(b.Full_name);
     if (mode === 'za') return b.Full_name.localeCompare(a.Full_name);
-    if (mode === 'newest') return (parseInt(b.Year) || 0) - (parseInt(a.Year) || 0);
-    if (mode === 'oldest') return (parseInt(a.Year) || 0) - (parseInt(b.Year) || 0);
+    if (mode === 'tribe') return (a.Tribe || '').localeCompare(b.Tribe || '') || a.Full_name.localeCompare(b.Full_name);
     return 0;
   });
 }
@@ -658,6 +736,10 @@ if (searchBtn) {
 document.querySelector('.filter-panel')?.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
     e.preventDefault();
+    // If typing in the scientific name box, use it as a text filter
+    if (e.target === sciNameInput && sciNameInput.value.trim()) {
+      sciNameSuggestions.innerHTML = '';
+    }
     currentPage = 1;
     runSearch();
   }
@@ -682,6 +764,9 @@ if (resetBtn) {
     if (provinceInput) provinceInput.value = '';
     if (localityInput) localityInput.value = '';
     if (tribeSelect) tribeSelect.value = '';
+    selectedHosts.clear();
+    if (hostChips) renderChipList(hostChips, selectedHosts);
+    if (hostInput) hostInput.value = '';
     if (imagesOnlyCheckbox) imagesOnlyCheckbox.checked = false;
     const sortSelect = document.getElementById('sortSelect');
     if (sortSelect) sortSelect.value = 'az';
@@ -732,6 +817,7 @@ function renderActiveFilters() {
   [...selectedCountries].forEach((c) => chips.push({ label: c, type: 'country', value: c }));
   [...selectedProvinces].forEach((p) => chips.push({ label: p, type: 'province', value: p }));
   [...selectedLocalities].forEach((l) => chips.push({ label: l, type: 'locality', value: l }));
+  [...selectedHosts].forEach((h) => chips.push({ label: `Host: ${h}`, type: 'host', value: h }));
   [...selectedSpeciesIds].forEach((id) => {
     const s = allSpeciesCache.find((x) => x.Species_ID === id);
     if (s) chips.push({ label: `${s.Genus} ${s.Species}`, type: 'species', value: id });
@@ -763,6 +849,7 @@ function renderActiveFilters() {
       if (type === 'province') selectedProvinces.delete(value);
       if (type === 'locality') selectedLocalities.delete(value);
       if (type === 'species') { selectedSpeciesIds.delete(value); renderChips(); }
+      if (type === 'host') selectedHosts.delete(value);
       runSearch();
     });
   });
