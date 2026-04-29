@@ -131,7 +131,7 @@ h1{
 .photo-track{
   display:flex;
   align-items:center;
-  gap:18px;
+  gap:24px;
   width:max-content;
   animation:aboutPhotoScroll 90s linear infinite;
   will-change:transform;
@@ -139,8 +139,8 @@ h1{
 
 .photo-track img{
   flex:0 0 auto;
-  width:260px;
-  height:155px;
+  width:420px;
+  height:250px;
   object-fit:cover;
   border:3px solid rgba(255,255,255,0.95);
   border-radius:6px;
@@ -150,11 +150,11 @@ h1{
 }
 
 .photo-track img:nth-child(3n){
-  width:170px;
+  width:280px;
 }
 
 .photo-track img:nth-child(4n){
-  width:310px;
+  width:500px;
 }
 
 @keyframes aboutPhotoScroll{
@@ -172,14 +172,21 @@ h1{
     margin-top:48px;
   }
 
-  .photo-track img{
-    width:190px;
-    height:120px;
+  .photo-track{
+    gap:18px;
   }
 
-  .photo-track img:nth-child(3n),
+  .photo-track img{
+    width:260px;
+    height:160px;
+  }
+
+  .photo-track img:nth-child(3n){
+    width:210px;
+  }
+
   .photo-track img:nth-child(4n){
-    width:190px;
+    width:310px;
   }
 }
 
