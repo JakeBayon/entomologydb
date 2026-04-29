@@ -33,11 +33,6 @@
 
     <!-- LEFT FILTER PANEL -->
     <aside class="filter-panel" id="filterPanel">
-
-      <div class="filter-header">
-        <h2>Search</h2>
-      </div>
-
       <!-- Scientific Name -->
       <div class="filter-section">
         <div class="filter-title" data-section-toggle>
@@ -45,7 +40,20 @@
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter scientific name..." />
+          <input type="text" id="map-sci-name-search" placeholder="Enter scientific name..." />
+        </div>
+      </div>
+
+      <!-- Tribe -->
+      <div class="filter-section">
+        <div class="filter-title" data-section-toggle>
+          Tribe
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="filter-content">
+          <select id="map-filter-tribe">
+            <option value="">Any tribe</option>
+          </select>
         </div>
       </div>
 
@@ -57,16 +65,16 @@
         </div>
         <div class="filter-content">
           <div class="location-group">
-            <input type="text" placeholder="Country..." />
+            <input type="text" id="map-filter-country" placeholder="Country..." />
           </div>
           <div class="location-group">
-            <input type="text" placeholder="Province / State..." />
+            <input type="text" id="map-filter-province" placeholder="Province / State..." />
           </div>
           <div class="location-group">
-            <input type="text" placeholder="County..." />
+            <input type="text" id="map-filter-locality" placeholder="Locality..." />
           </div>
           <div class="location-group">
-            <input type="number" placeholder="Minimum elevation (m)..." min="0" />
+            <input type="number" id="map-filter-elevation-min" placeholder="Minimum elevation (m)..." min="0" />
           </div>
         </div>
       </div>
@@ -78,8 +86,8 @@
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter host plant..." />
-          <select>
+          <input type="text" id="map-filter-host" placeholder="Enter host plant..." />
+          <select id="map-filter-host-family">
             <option value="">Select family</option>
             <option>Fabaceae</option>
             <option>Poaceae</option>
@@ -98,33 +106,24 @@
           <label class="checkbox-label">
             <span class="checkbox-text">Show only species with images</span>
             <span class="checkbox-box">
-              <input type="checkbox" />
+              <input type="checkbox" id="map-filter-images-only" />
             </span>
           </label>
         </div>
       </div>
 
-      <!-- Higher Taxa -->
-      <div class="filter-section">
-        <div class="filter-title" data-section-toggle>
-          Higher Taxa
-          <span class="arrow">&#9662;</span>
-        </div>
-        <div class="filter-content">
-          <select>
-            <option value="">Select rank</option>
-            <option>Subfamily</option>
-            <option>Tribe</option>
-            <option>Genus</option>
-          </select>
-          <input type="text" placeholder="Enter higher taxon..." />
-        </div>
+      <div class="filter-actions">
+        <button type="button" id="mapSearchBtn" class="btn-primary">Search</button>
+        <button type="button" id="mapResetBtn" class="btn-secondary">Reset</button>
       </div>
 
     </aside>
 
     <!-- MAP PANEL -->
     <main class="results-panel">
+      <div class="view-toolbar">
+        <button type="button" class="view-btn" id="filtersToggleBtn">Filters</button>
+      </div>
       <div id="map"></div>
     </main>
 
@@ -140,6 +139,19 @@
         arrow.classList.toggle('rotate');
       });
     });
+
+    const filtersToggleBtn = document.getElementById('filtersToggleBtn');
+    const searchLayout = document.getElementById('searchLayout');
+    if (filtersToggleBtn && searchLayout) {
+      if (localStorage.getItem('mapFiltersCollapsed') === 'true') {
+        searchLayout.classList.add('filters-collapsed');
+      }
+      filtersToggleBtn.addEventListener('click', () => {
+        searchLayout.classList.toggle('filters-collapsed');
+        localStorage.setItem('mapFiltersCollapsed', searchLayout.classList.contains('filters-collapsed'));
+        window.setTimeout(() => window.map?.resize(), 180);
+      });
+    }
   </script>
 
   <script src="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js"></script>

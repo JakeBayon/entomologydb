@@ -197,6 +197,17 @@ export async function searchSpecies(filters = {}) {
     });
   }
 
+  if (filters.localityIds || filters.bounds) {
+    const mapPoints = await getMapPoints({
+      localityIds: filters.localityIds,
+      bounds: filters.bounds,
+    });
+    const mapSpeciesNames = new Set(mapPoints.flatMap((point) => point.species_names || []));
+    if (mapSpeciesNames.size === 0) return [];
+
+    mapped = mapped.filter((s) => mapSpeciesNames.has(`${s.Genus} ${s.Species}`.trim()));
+  }
+
   return mapped;
 }
 
@@ -340,12 +351,206 @@ export async function getSpecimen(specimenId) {
 }
 
 // ============================================================
-// MAP - stubs
+// MAP
 // ============================================================
+
+let mapDatasetPromise = null;
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      row.push(cell);
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(cell);
+      if (row.some((value) => value !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell);
+    if (row.some((value) => value !== '')) rows.push(row);
+  }
+
+  return rows;
+}
+
+function cleanText(value) {
+  return String(value || '').replace(/[\x00-\x1f]/g, '').trim();
+}
+
+function normalize(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function parseNumber(value) {
+  const parsed = parseFloat(cleanText(value).replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function speciesBinomial(fullName) {
+  const parts = cleanText(fullName).split(/\s+/);
+  return parts.slice(0, 2).join(' ');
+}
+
+async function loadMapDataset() {
+  if (mapDatasetPromise) return mapDatasetPromise;
+
+  mapDatasetPromise = (async () => {
+    const [localityText, specimenText, genusText, imageText] = await Promise.all([
+      fetch(new URL('../../Data/BruchinDB_Locality.csv', import.meta.url)).then((res) => res.text()),
+      fetch(new URL('../../Data/BruchinDB_Specimen.csv', import.meta.url)).then((res) => res.text()),
+      fetch(new URL('../../Data/BruchinDB_Genus.csv', import.meta.url)).then((res) => res.text()),
+      fetch(new URL('../../Data/BruchinDB_Image.csv', import.meta.url)).then((res) => res.text()),
+    ]);
+
+    const genusToTribe = new Map();
+    parseCsv(genusText).forEach((row) => {
+      const genus = cleanText(row[0]);
+      const tribe = cleanText(row[2]);
+      if (genus) genusToTribe.set(genus, tribe);
+    });
+
+    const localities = new Map();
+    parseCsv(localityText).forEach((row) => {
+      const localityId = cleanText(row[10]);
+      const latitude = parseNumber(row[5]);
+      const longitude = parseNumber(row[6]);
+      if (!localityId || latitude === null || longitude === null) return;
+
+      localities.set(localityId, {
+        locality_id: localityId,
+        country: cleanText(row[0]),
+        province: cleanText(row[1]),
+        county: cleanText(row[2]),
+        locality_name: cleanText(row[3]),
+        elevation: cleanText(row[4]),
+        latitude,
+        longitude,
+      });
+    });
+
+    const imagedSpecimens = new Set();
+    parseCsv(imageText).forEach((row) => {
+      const specimenId = cleanText(row[6]);
+      if (specimenId) imagedSpecimens.add(specimenId);
+    });
+
+    const specimens = parseCsv(specimenText).map((row) => {
+      const fullName = cleanText(row[1]);
+      const genus = fullName.split(/\s+/)[0] || '';
+      const specimenId = cleanText(row[0]);
+      return {
+        specimen_id: specimenId,
+        full_name: fullName,
+        binomial: speciesBinomial(fullName),
+        genus,
+        tribe: genusToTribe.get(genus) || '',
+        locality_id: cleanText(row[9]),
+        host_name: cleanText(row[11]),
+        host_family: cleanText(row[12]),
+        has_image: imagedSpecimens.has(specimenId),
+      };
+    }).filter((specimen) => specimen.full_name && specimen.locality_id);
+
+    return { localities, specimens };
+  })();
+
+  return mapDatasetPromise;
+}
+
 export async function getMapPoints(filters = {}) {
-  return [];
+  const { localities, specimens } = await loadMapDataset();
+  const groups = new Map();
+
+  const scientificName = normalize(filters.scientificName);
+  const tribe = normalize(filters.tribe);
+  const country = normalize(filters.country);
+  const province = normalize(filters.province);
+  const localityQuery = normalize(filters.locality);
+  const host = normalize(filters.host);
+  const hostFamily = normalize(filters.hostFamily);
+  const imagesOnly = Boolean(filters.imagesOnly);
+  const minElevation = filters.minElevation ? parseFloat(filters.minElevation) : null;
+  const bounds = filters.bounds || null;
+  const localityIds = filters.localityIds ? new Set(filters.localityIds.map(cleanText)) : null;
+
+  for (const specimen of specimens) {
+    const locality = localities.get(specimen.locality_id);
+    if (!locality) continue;
+
+    if (localityIds && !localityIds.has(locality.locality_id)) continue;
+    if (scientificName && !normalize(specimen.full_name).includes(scientificName)) continue;
+    if (tribe && normalize(specimen.tribe) !== tribe) continue;
+    if (country && !normalize(locality.country).includes(country)) continue;
+    if (province && !normalize(locality.province).includes(province)) continue;
+    if (localityQuery && !normalize(locality.locality_name).includes(localityQuery)) continue;
+    if (host && !normalize(specimen.host_name).includes(host)) continue;
+    if (hostFamily && normalize(specimen.host_family) !== hostFamily) continue;
+    if (imagesOnly && !specimen.has_image) continue;
+
+    if (Number.isFinite(minElevation)) {
+      const elevation = parseNumber(locality.elevation);
+      if (elevation === null || elevation < minElevation) continue;
+    }
+
+    if (bounds) {
+      if (
+        locality.longitude < bounds.west ||
+        locality.longitude > bounds.east ||
+        locality.latitude < bounds.south ||
+        locality.latitude > bounds.north
+      ) {
+        continue;
+      }
+    }
+
+    if (!groups.has(locality.locality_id)) {
+      groups.set(locality.locality_id, {
+        locality_id: locality.locality_id,
+        locality_name: locality.locality_name,
+        country: locality.country,
+        province: locality.province,
+        latitude: locality.latitude,
+        longitude: locality.longitude,
+        specimen_count: 0,
+        species_count: 0,
+        species_ids: [],
+        species_names: [],
+      });
+    }
+
+    const group = groups.get(locality.locality_id);
+    group.specimen_count += 1;
+    if (!group.species_names.includes(specimen.binomial)) {
+      group.species_names.push(specimen.binomial);
+      group.species_ids.push(specimen.binomial);
+      group.species_count = group.species_names.length;
+    }
+  }
+
+  return [...groups.values()];
 }
 
 export async function getLocality(localityId) {
-  return null;
+  const { localities } = await loadMapDataset();
+  return localities.get(localityId) || null;
 }

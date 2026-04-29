@@ -2,7 +2,7 @@
 // Loads specimen localities from the API and renders them as clustered pins.
 // Clicking a pin or drawing a bounding box navigates to the search page.
 
-import { getMapPoints, getLocality } from '../shared/bruchindb-api.js';
+import { getMapPoints, getLocality, TRIBES } from '../shared/bruchindb-api.js';
 import { polygonFromCorners } from './boundingbox-utils.js';
 
 
@@ -26,6 +26,60 @@ const PIN_IMAGE_ID = "bruchin-pin";
 
 const PANEL_WIDTH = 300;
 const DEFAULT_PADDING = 160;
+
+const mapSearchBtn = document.getElementById("mapSearchBtn");
+const mapResetBtn = document.getElementById("mapResetBtn");
+const mapSciNameInput = document.getElementById("map-sci-name-search");
+const mapTribeSelect = document.getElementById("map-filter-tribe");
+const mapCountryInput = document.getElementById("map-filter-country");
+const mapProvinceInput = document.getElementById("map-filter-province");
+const mapLocalityInput = document.getElementById("map-filter-locality");
+const mapElevationMinInput = document.getElementById("map-filter-elevation-min");
+const mapHostInput = document.getElementById("map-filter-host");
+const mapHostFamilySelect = document.getElementById("map-filter-host-family");
+const mapImagesOnlyCheckbox = document.getElementById("map-filter-images-only");
+
+function populateTribeFilter() {
+  if (!mapTribeSelect) return;
+  mapTribeSelect.innerHTML = '<option value="">Any tribe</option>';
+  TRIBES.forEach((tribe) => {
+    const option = document.createElement("option");
+    option.value = tribe;
+    option.textContent = tribe;
+    mapTribeSelect.appendChild(option);
+  });
+}
+
+function getMapFilters() {
+  return {
+    scientificName: mapSciNameInput?.value.trim() || "",
+    tribe: mapTribeSelect?.value || "",
+    country: mapCountryInput?.value.trim() || "",
+    province: mapProvinceInput?.value.trim() || "",
+    locality: mapLocalityInput?.value.trim() || "",
+    minElevation: mapElevationMinInput?.value || "",
+    host: mapHostInput?.value.trim() || "",
+    hostFamily: mapHostFamilySelect?.value || "",
+    imagesOnly: mapImagesOnlyCheckbox?.checked || false,
+  };
+}
+
+function resetMapFilters() {
+  [
+    mapSciNameInput,
+    mapCountryInput,
+    mapProvinceInput,
+    mapLocalityInput,
+    mapElevationMinInput,
+    mapHostInput,
+  ].forEach((input) => {
+    if (input) input.value = "";
+  });
+
+  if (mapTribeSelect) mapTribeSelect.value = "";
+  if (mapHostFamilySelect) mapHostFamilySelect.value = "";
+  if (mapImagesOnlyCheckbox) mapImagesOnlyCheckbox.checked = false;
+}
 
 
 // ============================================================
@@ -76,7 +130,7 @@ function loadPinImage() {
 // ============================================================
 
 function fitBoundsWithPanel(bounds) {
-  const panelOpen = document.querySelector(".page-shell")?.classList.contains("panel-open");
+  const panelOpen = !document.getElementById("searchLayout")?.classList.contains("filters-collapsed");
   map.fitBounds(bounds, {
     padding: {
       top: DEFAULT_PADDING,
@@ -236,13 +290,42 @@ function hideBboxPrompt() {
 // SPECIMEN MARKERS WITH CLUSTERING
 // ============================================================
 
-async function loadSpecimenPoints() {
+function pointsToGeoJson(points) {
+  return {
+    type: "FeatureCollection",
+    features: points.map((p) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
+      properties: {
+        locality_id: p.locality_id,
+        locality_name: p.locality_name,
+        country: p.country,
+        province: p.province || "",
+        specimen_count: p.specimen_count,
+        species_count: p.species_count,
+        species_names_json: JSON.stringify(p.species_names || []),
+        // Store species_ids as a JSON string so it survives the geojson roundtrip
+        species_ids_json: JSON.stringify(p.species_ids),
+      },
+    })),
+  };
+}
+
+function fitToPoints(points) {
+  if (!points.length) return;
+
+  const bounds = new maplibregl.LngLatBounds();
+  points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
+  fitBoundsWithPanel(bounds);
+}
+
+async function loadSpecimenPoints(extraFilters = {}) {
   try {
     await loadPinImage();
 
     // Read filters from URL so map matches search page
     const params = new URLSearchParams(window.location.search);
-    const filters = {};
+    const filters = { ...extraFilters };
     if (params.has('west')) {
       filters.bounds = {
         west: parseFloat(params.get('west')),
@@ -252,27 +335,11 @@ async function loadSpecimenPoints() {
       };
     }
     const points = await getMapPoints(filters);
-
-    const geojson = {
-      type: "FeatureCollection",
-      features: points.map((p) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
-        properties: {
-          locality_id: p.locality_id,
-          locality_name: p.locality_name,
-          country: p.country,
-          province: p.province || "",
-          specimen_count: p.specimen_count,
-          species_count: p.species_count,
-          // Store species_ids as a JSON string so it survives the geojson roundtrip
-          species_ids_json: JSON.stringify(p.species_ids),
-        },
-      })),
-    };
+    const geojson = pointsToGeoJson(points);
 
     if (map.getSource(SPECIMENS_SOURCE_ID)) {
       map.getSource(SPECIMENS_SOURCE_ID).setData(geojson);
+      fitToPoints(points);
       return;
     }
 
@@ -362,15 +429,11 @@ async function loadSpecimenPoints() {
     // Click individual pin: navigate to search page (or species page if single)
     map.on("click", POINT_LAYER_ID, (e) => {
       const props = e.features[0].properties;
-      const speciesIds = JSON.parse(props.species_ids_json || "[]");
-
-      if (speciesIds.length === 1) {
-        // Single species at this locality - go straight to species page
-        window.location.href = `../search-page/species.html?id=${encodeURIComponent(speciesIds[0])}`;
-      } else {
-        // Multiple species - go to search page filtered by this locality
-        window.location.href = `../search-page/index.html?localityId=${encodeURIComponent(props.locality_id)}`;
-      }
+      const params = new URLSearchParams();
+      if (props.country) params.set("countries", props.country);
+      if (props.province) params.set("provinces", props.province);
+      if (props.locality_name) params.set("localities", props.locality_name);
+      window.location.href = `../search-page/index.html?${params}`;
     });
 
     // Cursor changes
@@ -382,6 +445,8 @@ async function loadSpecimenPoints() {
         if (!bboxMode) map.getCanvas().style.cursor = "";
       });
     });
+
+    fitToPoints(points);
   } catch (err) {
     console.error("Failed to load specimen points:", err);
   }
@@ -394,6 +459,7 @@ async function loadSpecimenPoints() {
 
 map.on("load", () => {
   ensureBboxLayers();
+  populateTribeFilter();
   loadSpecimenPoints();
 
   const navContainer = nav._container;
@@ -415,6 +481,29 @@ map.on("load", () => {
   ['countries-boundary', 'geolines'].forEach((layerId) => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
+});
+
+if (mapSearchBtn) {
+  mapSearchBtn.addEventListener("click", () => {
+    clearBbox();
+    loadSpecimenPoints(getMapFilters());
+  });
+}
+
+if (mapResetBtn) {
+  mapResetBtn.addEventListener("click", () => {
+    resetMapFilters();
+    clearBbox();
+    loadSpecimenPoints();
+  });
+}
+
+document.getElementById("filterPanel")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && event.target.tagName !== "BUTTON") {
+    event.preventDefault();
+    clearBbox();
+    loadSpecimenPoints(getMapFilters());
+  }
 });
 
 // Bounding box drawing handlers
