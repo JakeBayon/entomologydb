@@ -34,7 +34,7 @@
           <p class="welcome-subtitle">Sharing seed beetle data globally</p>
 
           <div class="welcome-actions">
-            <a href="#" class="welcome-btn welcome-btn-solid">Login</a>
+            <a href="../search-page/index.html" class="welcome-btn welcome-btn-solid" data-login-transition>Login</a>
             <a href="#" class="welcome-btn welcome-btn-outline">Sign Up</a>
           </div>
 
@@ -43,9 +43,78 @@
       </div>
     </section>
 
+    <!-- Database vault transition shown before routing to the search page. -->
+    <div class="page-transition-overlay" aria-hidden="true">
+      <div class="search-zoom-preview">
+        <div class="preview-topbar">
+          <div class="preview-brand">
+            <img src="../search-page/icons/bruchindb-logo.png" alt="" class="preview-logo">
+            <span>BruchinDB</span>
+          </div>
+          <div class="preview-nav">
+            <span class="active"></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+
+        <div class="preview-search-layout">
+          <aside class="preview-filters">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </aside>
+          <main class="preview-results">
+            <div class="preview-toolbar"></div>
+            <div class="preview-card-grid">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </main>
+        </div>
+      </div>
+      <div class="transition-half transition-half-top"></div>
+      <div class="transition-half transition-half-bottom"></div>
+      <div class="transition-flash"></div>
+    </div>
+
   </main>
 
   <script>
+    const loginButton = document.querySelector("[data-login-transition]");
+    const transitionOverlay = document.querySelector(".page-transition-overlay");
+
+    // Keep navigation accessible: reduced-motion users and no-JS users go straight to Search.
+    if (loginButton && transitionOverlay) {
+      loginButton.addEventListener("click", (event) => {
+        const searchUrl = loginButton.href;
+        const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        if (prefersReducedMotion) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (document.body.classList.contains("is-transitioning")) {
+          return;
+        }
+
+        document.body.classList.add("is-transitioning");
+        transitionOverlay.setAttribute("aria-hidden", "false");
+
+        window.setTimeout(() => {
+          window.location.href = searchUrl;
+        }, 1250);
+      });
+    }
+
     const beetleImages = [
       "./WelcomePageImages/species001.png",
       "./WelcomePageImages/species002.png",
