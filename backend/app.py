@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from datetime import datetime
-from email.message import EmailMessage
-import mimetypes
 import os
+from datetime import datetime
 import smtplib
+import mimetypes
+from email.message import EmailMessage
 
 app = Flask(__name__)
 CORS(app)
@@ -23,7 +23,7 @@ ALLOWED_EXTENSIONS = {
 }
 
 EMAIL_SENDER = os.getenv("BRUCHINDB_EMAIL_SENDER", "jwbayon23@gmail.com")
-EMAIL_RECEIVER = os.getenv("BRUCHINDB_EMAIL_RECEIVER", "jwbayon23@gmail.com")
+EMAIL_RECEIVER = os.getenv("BRUCHINDB_EMAIL_RECEIVER", "jbayon@sandiego.edu")
 EMAIL_APP_PASSWORD = os.getenv("BRUCHINDB_EMAIL_APP_PASSWORD")
 
 
@@ -38,21 +38,32 @@ def build_unique_filename(filename):
     return f"{name}_{timestamp}{ext}"
 
 
-def get_attachment_type(file_path):
+def get_mime_type(file_path):
     mime_type, _ = mimetypes.guess_type(file_path)
-
     if mime_type and "/" in mime_type:
         return mime_type.split("/", 1)
-
     return "application", "octet-stream"
 
 
-def build_email_body(form_data, saved_file_paths):
+def send_submission_email(form_data, saved_file_paths):
+    if not EMAIL_APP_PASSWORD:
+        raise RuntimeError("Missing BRUCHINDB_EMAIL_APP_PASSWORD.")
+
+    msg = EmailMessage()
+    msg["Subject"] = "BruchinDB | New Seed Beetle Submission"
+    msg["From"] = EMAIL_SENDER
+    msg["To"] = EMAIL_RECEIVER
+
+    submitter_email = form_data.get("email", "").strip()
+    if submitter_email:
+        msg["Reply-To"] = submitter_email
+
     attached_names = [os.path.basename(path) for path in saved_file_paths]
 
-    return f"""A new BruchinDB seed beetle submission was received.
+    msg.set_content(
+        f"""A new BruchinDB seed beetle submission was received.
 
-collector information
+collector
 first name: {form_data.get("firstName", "")}
 last name: {form_data.get("lastName", "")}
 email: {form_data.get("email", "")}
@@ -69,32 +80,20 @@ host type: {form_data.get("hostType", "")}
 collection
 collection date: {form_data.get("collectionDate", "")}
 
-additional notes
+notes
 description: {form_data.get("description", "")}
 
-attached files
+attached files:
 {chr(10).join(attached_names) if attached_names else "No files attached"}
 """
-
-
-def send_submission_email(form_data, saved_file_paths):
-    if not EMAIL_APP_PASSWORD:
-        raise RuntimeError(
-            "Missing BRUCHINDB_EMAIL_APP_PASSWORD environment variable."
-        )
-
-    msg = EmailMessage()
-    msg["Subject"] = "BruchinDB | New Seed Beetle Submission"
-    msg["From"] = EMAIL_SENDER
-    msg["To"] = EMAIL_RECEIVER
-    msg.set_content(build_email_body(form_data, saved_file_paths))
+    )
 
     for file_path in saved_file_paths:
         with open(file_path, "rb") as f:
             file_data = f.read()
+            file_name = os.path.basename(file_path)
 
-        file_name = os.path.basename(file_path)
-        maintype, subtype = get_attachment_type(file_path)
+        maintype, subtype = get_mime_type(file_path)
 
         msg.add_attachment(
             file_data,
@@ -126,16 +125,16 @@ def upload():
     photo_file = request.files.get("photoFile")
     info_file = request.files.get("infoFile")
 
-    if form_data["email"] and "@" not in form_data["email"]:
+    if not form_data["firstName"] or not form_data["lastName"] or not form_data["email"]:
         return jsonify({
             "success": False,
-            "error": "Invalid email address."
+            "error": "Missing contact information."
         }), 400
 
-    if not any(form_data.values()) and not (photo_file and photo_file.filename) and not (info_file and info_file.filename):
+    if not photo_file and not info_file:
         return jsonify({
             "success": False,
-            "error": "Submission is empty."
+            "error": "No files were uploaded."
         }), 400
 
     saved_files = []
