@@ -520,18 +520,35 @@ h1{
 
 .preview-card-grid{
   display:grid;
-  grid-template-columns:repeat(3, minmax(140px, 1fr));
-  gap:22px;
+  grid-template-columns:repeat(2, minmax(220px, 1fr));
+  gap:26px;
 }
 
 .preview-card-grid span{
-  min-height:172px;
-  border-radius:6px;
+  position:relative;
+  min-height:120px;
+  border-radius:12px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0) 0 54%, rgba(255,255,255,0.94) 55%),
-    linear-gradient(135deg, rgba(119,137,173,0.24), rgba(118,180,118,0.18));
+    radial-gradient(circle at calc(100% - 58px) 50%, #7789AD 0 34px, rgba(119,137,173,0) 35px),
+    linear-gradient(90deg, rgba(17,17,17,0.18) 0 34%, transparent 34%),
+    linear-gradient(90deg, rgba(17,17,17,0.1) 0 42%, transparent 42%),
+    linear-gradient(90deg, rgba(17,17,17,0.16) 0 20%, transparent 20%),
+    #ffffff;
+  background-position:
+    0 0,
+    22px 30px,
+    22px 56px,
+    22px 82px,
+    0 0;
+  background-size:
+    auto,
+    44% 16px,
+    36% 10px,
+    22% 12px,
+    auto;
+  background-repeat:no-repeat;
   border:1px solid rgba(17,17,17,0.08);
-  box-shadow:0 12px 30px rgba(17,17,17,0.07);
+  box-shadow:0 2px 10px rgba(0,0,0,0.06);
 }
 
 @keyframes vaultTopOpen{
@@ -716,11 +733,12 @@ h1{
   }
 
   .preview-card-grid{
+    grid-template-columns:1fr;
     gap:14px;
   }
 
   .preview-card-grid span{
-    min-height:136px;
+    min-height:112px;
   }
 }
 
