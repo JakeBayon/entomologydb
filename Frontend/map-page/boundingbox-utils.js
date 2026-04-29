@@ -1,5 +1,6 @@
 // Small helper for the bounding-box feature.
-// I pulled this out into its own file so the logic is easy to test by itself.
+// (separated into its own file to make it easier to test without needing the whole map UI)
+// using Jest testing framework (for JavaScript)
 
 export function polygonFromCorners(a, b) {
   const west = Math.min(a.lng, b.lng);

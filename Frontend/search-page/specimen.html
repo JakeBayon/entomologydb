@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Specimen | BruchinDB</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../search-page/index.html">
+        <img src="./icons/bruchindb-logo.png" alt="BruchinDB logo" class="brand-logo" />
+        <span class="brand-name">BruchinDB</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="../search-page/index.html">Search</a>
+        <a class="nav-link" href="../map-page/index.html">Map</a>
+        <a class="nav-link" href="../loading-page/index.html">Learn</a>
+        <a class="nav-link" href="../data-submission-page/index.html">Submit Data</a>
+        <a class="nav-link" href="../about-page/index.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <nav class="breadcrumbs" aria-label="Breadcrumb" style="visibility:hidden">
+    <a href="./index.html" id="breadcrumb-search">Search</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="#" id="breadcrumb-species-link">Species</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current" id="breadcrumb-specimen">Specimen</span>
+  </nav>
+
+  <main class="species-page">
+    <div class="species-hero">
+      <h1 class="species-title" id="specimen-title">Loading...</h1>
+      <p class="species-subtitle" id="specimen-subtitle"></p>
+    </div>
+
+    <section class="tab-panel is-active">
+      <div class="panel-card">
+        <h2 class="panel-title">Specimen Information</h2>
+        <div class="info-grid" id="specimen-info"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel is-active">
+      <div class="panel-card">
+        <h2 class="panel-title">Collection Event</h2>
+        <div class="info-grid" id="event-info"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel is-active" id="specimen-host-section" style="display:none;">
+      <div class="panel-card">
+        <h2 class="panel-title">Host Plant</h2>
+        <div class="info-grid" id="host-info"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel is-active" id="specimen-citation-section" style="display:none;">
+      <div class="panel-card">
+        <h2 class="panel-title">Citation</h2>
+        <p id="citation-text"></p>
+      </div>
+    </section>
+
+    <section class="tab-panel is-active" id="specimen-notes-section" style="display:none;">
+      <div class="panel-card">
+        <h2 class="panel-title">Notes</h2>
+        <p id="notes-text"></p>
+      </div>
+    </section>
+
+    <section class="tab-panel is-active" id="specimen-images-section" style="display:none;">
+      <div class="panel-card">
+        <h2 class="panel-title">Images</h2>
+        <div class="image-grid" id="specimen-images"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./specimen.js"></script>
+  <button type="button" id="backToTop" class="back-to-top" aria-label="Back to top">↑</button>
+</body>
+</html>

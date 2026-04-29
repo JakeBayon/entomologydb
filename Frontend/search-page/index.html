@@ -32,11 +32,6 @@
 
     <!-- LEFT FILTER PANEL -->
     <aside class="filter-panel" id="filterPanel">
-
-      <div class="filter-header">
-        <h2>Search</h2>
-      </div>
-
       <div class="filter-section">
         <div class="filter-title" data-section-toggle>
           Scientific Name
@@ -91,13 +86,9 @@
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter host plant..." />
-          <select>
-            <option value="">Select family</option>
-            <option>Fabaceae</option>
-            <option>Poaceae</option>
-            <option>Asteraceae</option>
-          </select>
+          <input type="text" id="host-search" placeholder="Search host plant..." autocomplete="off" />
+          <div id="host-suggestions" class="autocomplete-suggestions"></div>
+          <div id="host-chips" class="chip-list"></div>
         </div>
       </div>
 
@@ -121,8 +112,39 @@
         <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
       </div>
 
-    </aside>
+      <!-- Active filters display -->
+      <div id="active-filters" class="active-filters"></div>
 
+      <!-- Anchored to bottom -->
+      <div class="filter-panel-bottom">
+        <div class="filter-section filter-section-open">
+          <div class="filter-title" data-section-toggle>
+            Recently Viewed
+            <span class="arrow">&#9662;</span>
+          </div>
+          <div class="filter-content open">
+            <div id="recently-viewed-list"></div>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-title" data-section-toggle>
+            Saved Queries
+            <span class="arrow">&#9662;</span>
+          </div>
+          <div class="filter-content">
+            <div id="save-query-inline" class="save-query-inline" style="display:none;">
+              <input type="text" id="saveQueryName" placeholder="Query name..." class="save-query-input" />
+              <button type="button" id="saveQueryConfirm" class="save-query-confirm">Save</button>
+              <button type="button" id="saveQueryCancel" class="save-query-cancel">x</button>
+            </div>
+            <button type="button" class="save-query-btn" id="saveQueryBtn">+ Save current query</button>
+            <div id="saved-queries-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
 
     <!-- MAIN VIEW -->
     <main class="main-view">
@@ -135,8 +157,7 @@
           <select id="sortSelect" class="sort-select">
             <option value="az">Name (A-Z)</option>
             <option value="za">Name (Z-A)</option>
-            <option value="newest">Year (Newest)</option>
-            <option value="oldest">Year (Oldest)</option>
+            <option value="tribe">Tribe</option>
           </select>
         </div>
 
@@ -153,6 +174,7 @@
       </div>
 
     </main>
+
 
   </div>
 
@@ -172,8 +194,12 @@
     const filtersToggleBtn = document.getElementById('filtersToggleBtn');
     const searchLayout = document.getElementById('searchLayout');
     if (filtersToggleBtn && searchLayout) {
+      if (localStorage.getItem('filtersCollapsed') === 'true') {
+        searchLayout.classList.add('filters-collapsed');
+      }
       filtersToggleBtn.addEventListener('click', () => {
         searchLayout.classList.toggle('filters-collapsed');
+        localStorage.setItem('filtersCollapsed', searchLayout.classList.contains('filters-collapsed'));
       });
     }
   </script>

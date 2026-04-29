@@ -4,7 +4,6 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 import smtplib
-import mimetypes
 from email.message import EmailMessage
 
 app = Flask(__name__)
@@ -15,17 +14,16 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 mb max upload
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB max upload
 
 ALLOWED_EXTENSIONS = {
     "png", "jpg", "jpeg", "gif", "webp",
     "pdf", "doc", "docx", "txt", "csv", "xlsx"
 }
 
-EMAIL_SENDER = os.getenv("BRUCHINDB_EMAIL_SENDER", "jwbayon23@gmail.com")
-EMAIL_RECEIVER = os.getenv("BRUCHINDB_EMAIL_RECEIVER", "jbayon@sandiego.edu")
+EMAIL_SENDER = "jwbayon23@gmail.com"
+EMAIL_RECEIVER = "jwbayon23@gmail.com"
 EMAIL_APP_PASSWORD = os.getenv("BRUCHINDB_EMAIL_APP_PASSWORD")
-
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -38,52 +36,22 @@ def build_unique_filename(filename):
     return f"{name}_{timestamp}{ext}"
 
 
-def get_mime_type(file_path):
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if mime_type and "/" in mime_type:
-        return mime_type.split("/", 1)
-    return "application", "octet-stream"
-
-
-def send_submission_email(form_data, saved_file_paths):
-    if not EMAIL_APP_PASSWORD:
-        raise RuntimeError("Missing BRUCHINDB_EMAIL_APP_PASSWORD.")
-
+def send_submission_email(first_name, last_name, email, saved_file_paths):
     msg = EmailMessage()
-    msg["Subject"] = "BruchinDB | New Seed Beetle Submission"
+    msg["Subject"] = "BruchinDB | You Received a New Seed Beetle Submission!"
     msg["From"] = EMAIL_SENDER
     msg["To"] = EMAIL_RECEIVER
-
-    submitter_email = form_data.get("email", "").strip()
-    if submitter_email:
-        msg["Reply-To"] = submitter_email
 
     attached_names = [os.path.basename(path) for path in saved_file_paths]
 
     msg.set_content(
         f"""A new BruchinDB seed beetle submission was received.
 
-collector
-first name: {form_data.get("firstName", "")}
-last name: {form_data.get("lastName", "")}
-email: {form_data.get("email", "")}
+First name: {first_name}
+Last name: {last_name}
+Email: {email}
 
-locality
-latitude: {form_data.get("latitude", "")}
-longitude: {form_data.get("longitude", "")}
-location description: {form_data.get("locationDescription", "")}
-
-host
-host plant name: {form_data.get("hostPlantName", "")}
-host type: {form_data.get("hostType", "")}
-
-collection
-collection date: {form_data.get("collectionDate", "")}
-
-notes
-description: {form_data.get("description", "")}
-
-attached files:
+Attached files:
 {chr(10).join(attached_names) if attached_names else "No files attached"}
 """
     )
@@ -93,12 +61,10 @@ attached files:
             file_data = f.read()
             file_name = os.path.basename(file_path)
 
-        maintype, subtype = get_mime_type(file_path)
-
         msg.add_attachment(
             file_data,
-            maintype=maintype,
-            subtype=subtype,
+            maintype="application",
+            subtype="octet-stream",
             filename=file_name
         )
 
@@ -109,23 +75,14 @@ attached files:
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    form_data = {
-        "firstName": request.form.get("firstName", "").strip(),
-        "lastName": request.form.get("lastName", "").strip(),
-        "email": request.form.get("email", "").strip(),
-        "latitude": request.form.get("latitude", "").strip(),
-        "longitude": request.form.get("longitude", "").strip(),
-        "locationDescription": request.form.get("locationDescription", "").strip(),
-        "hostPlantName": request.form.get("hostPlantName", "").strip(),
-        "hostType": request.form.get("hostType", "").strip(),
-        "collectionDate": request.form.get("collectionDate", "").strip(),
-        "description": request.form.get("description", "").strip()
-    }
+    first_name = request.form.get("firstName", "").strip()
+    last_name = request.form.get("lastName", "").strip()
+    email = request.form.get("email", "").strip()
 
     photo_file = request.files.get("photoFile")
     info_file = request.files.get("infoFile")
 
-    if not form_data["firstName"] or not form_data["lastName"] or not form_data["email"]:
+    if not first_name or not last_name or not email:
         return jsonify({
             "success": False,
             "error": "Missing contact information."
@@ -167,11 +124,14 @@ def upload():
             saved_files.append(info_name)
             saved_file_paths.append(info_path)
 
-        send_submission_email(form_data, saved_file_paths)
+        send_submission_email(first_name, last_name, email, saved_file_paths)
 
         return jsonify({
             "success": True,
             "message": "Submission received successfully.",
+            "firstName": first_name,
+            "lastName": last_name,
+            "email": email,
             "savedFiles": saved_files
         }), 200
 

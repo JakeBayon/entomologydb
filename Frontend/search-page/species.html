@@ -12,181 +12,102 @@
 
 <body>
 
-  <header class="species-topbar">
-    <a class="species-topbar-link" href="./index.html">
-      ← Back to Search
-    </a>
-    <div class="species-topbar-spacer"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../search-page/index.html">
+        <img src="./icons/bruchindb-logo.png" alt="BruchinDB logo" class="brand-logo" />
+        <span class="brand-name">BruchinDB</span>
+      </a>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="../search-page/index.html">Search</a>
+        <a class="nav-link" href="../map-page/index.html">Map</a>
+        <a class="nav-link" href="../loading-page/index.html">Learn</a>
+        <a class="nav-link" href="../data-submission-page/index.html">Submit Data</a>
+        <a class="nav-link" href="../about-page/index.html">About</a>
+      </nav>
+    </div>
   </header>
+
+  <nav class="breadcrumbs" aria-label="Breadcrumb" style="visibility:hidden">
+    <a href="./index.html" id="breadcrumb-search">Search</a>
+    <span class="breadcrumb-sep">›</span>
+    <span class="breadcrumb-current" id="breadcrumb-species">Species</span>
+  </nav>
 
   <main class="species-page">
 
-    <!-- Centered species title like your inspiration -->
     <div class="species-hero">
-      <h1 class="species-title">Acanthoscelides obtectus</h1>
-      <p class="species-subtitle">230 specimens documented</p>
+      <h1 class="species-title">Loading...</h1>
+      <p class="species-subtitle"></p>
+      <div class="view-toggle">
+        <button type="button" id="viewToggle" class="view-toggle-btn">Switch to tabbed view</button>
+      </div>
     </div>
 
-    <!-- Tabs -->
-    <nav class="tabs" aria-label="Species sections">
-      <button class="tab-btn is-active" data-tab="taxon" aria-selected="true" role="tab">
-        Taxonomic Information
-      </button>
-      <button class="tab-btn" data-tab="images" aria-selected="false" role="tab">
-        Images
-      </button>
-      <button class="tab-btn" data-tab="specimens" aria-selected="false" role="tab">
-        Specimens
-      </button>
-      <button class="tab-btn" data-tab="events" aria-selected="false" role="tab">
-        Events
-      </button>
-      <button class="tab-btn" data-tab="map" aria-selected="false" role="tab">
-        Map
-      </button>
+    <nav class="tabs species-tabs" aria-label="Species sections" style="display:none;">
+      <button class="tab-btn is-active" data-tab="taxon" aria-selected="true" role="tab">Taxonomy</button>
+      <button class="tab-btn" data-tab="images" aria-selected="false" role="tab">Images</button>
+      <button class="tab-btn" data-tab="specimens" aria-selected="false" role="tab">Specimens</button>
+      <button class="tab-btn" data-tab="events" aria-selected="false" role="tab">Events</button>
+      <button class="tab-btn" data-tab="map-panel" aria-selected="false" role="tab">Map</button>
     </nav>
 
-    <!-- Tab panels -->
-    <section class="tab-panel is-active" id="taxon" role="tabpanel">
-      <div class="panel-card">
-        <h2 class="panel-title">Taxonomic Information</h2>
+    <!-- Two-column layout -->
+    <div class="species-columns">
 
-        <div class="info-grid">
-          <div class="info-item">
-            <div class="info-label">Kingdom</div>
-            <div class="info-value">Animalia</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Phylum</div>
-            <div class="info-value">Arthropoda</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Class</div>
-            <div class="info-value">Insecta</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Order</div>
-            <div class="info-value">Coleoptera</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Family</div>
-            <div class="info-value">Chrysomelidae</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Subfamily</div>
-            <div class="info-value">Bruchinae</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Genus</div>
-            <div class="info-value">Acanthoscelides</div>
-          </div>
-          <div class="info-item">
-            <div class="info-label">Species</div>
-            <div class="info-value">obtectus</div>
-          </div>
+      <!-- Left column: taxonomy + map -->
+      <div class="species-col-left">
+        <div class="panel-card" id="taxon">
+          <h2 class="panel-title">Taxonomic Information</h2>
+          <div class="info-grid"></div>
+        </div>
+
+        <div class="panel-card" id="map-panel">
+          <h2 class="panel-title">Locality Map</h2>
+          <div id="species-map"></div>
+          <p id="map-empty" style="display:none; color:#666; padding:20px;">No coordinates available for this species.</p>
         </div>
       </div>
-    </section>
 
-    <section class="tab-panel" id="images" role="tabpanel">
-      <div class="panel-card">
-        <h2 class="panel-title">Images</h2>
+      <!-- Right column: images + specimens -->
+      <div class="species-col-right">
+        <div class="panel-card" id="images">
+          <h2 class="panel-title">Images</h2>
+          <div class="image-grid"></div>
+        </div>
 
-        <div class="image-grid">
-          <figure class="image-tile">
-            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
-            <figcaption>Placeholder image</figcaption>
-          </figure>
-
-          <figure class="image-tile">
-            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
-            <figcaption>Placeholder image</figcaption>
-          </figure>
-
-          <figure class="image-tile">
-            <img src="./seed_beetle_logo_transparent.png" alt="Default beetle placeholder" />
-            <figcaption>Placeholder image</figcaption>
-          </figure>
+        <div class="panel-card" id="specimens">
+          <h2 class="panel-title">Specimens</h2>
+          <div class="specimen-list" id="specimen-list"></div>
         </div>
       </div>
-    </section>
 
-    <section class="tab-panel" id="specimens" role="tabpanel">
-      <div class="panel-card">
-        <h2 class="panel-title">Specimens</h2>
-
-        <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-            <tr>
-                <th>Specimen ID</th>
-                <th>Sex</th>
-                <th>Stage</th>
-                <th>Collection Method</th>
-                <th>Determined By</th>
-                <th>Locality</th>
-            </tr>
-            </thead>
-
-            <tbody>
-            <!-- placeholder rows -->
-            <tr>
-                <td>BRU-000123</td>
-                <td>Male</td>
-                <td>Adult</td>
-                <td>Hand Collection</td>
-                <td>G. Morse</td>
-                <td>San Diego, California, USA</td>
-            </tr>
-
-            <tr>
-                <td>BRU-000124</td>
-                <td>Female</td>
-                <td>Adult</td>
-                <td>Light Trap</td>
-                <td>J. Bayon</td>
-                <td>Jalisco, Mexico</td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
-
-    </section>
-
-    <!-- Events Tab -->
-    <section class="tab-panel" id="events">
-    <div class="panel-card">
-        <h2>Events</h2>
-
-        <div class="table-wrap">
-        <table class="data-table">
-            <thead>
-            <tr>
-                <th>Country</th>
-                <th>Province</th>
-                <th>Locality</th>
-                <th>Elevation</th>
-                <th>Coordinates</th>
-                <th>Date</th>
-                <th>Collector</th>
-            </tr>
-            </thead>
-
-            <tbody>
-
-            </tbody>
-        </table>
-        </div>
     </div>
-    </section>
 
-    <section class="tab-panel" id="map" role="tabpanel">
-      <div class="panel-card">
-        <h2 class="panel-title">Locality Map</h2>
-        <div id="species-map" style="width: 100%; height: 500px; border-radius: 8px;"></div>
-        <p id="map-empty" style="display:none; color:#666; padding:20px;">No coordinates available for this species.</p>
+    <div class="panel-card" id="hosts" style="margin-top:24px; display:none;">
+      <h2 class="panel-title">Host Plants</h2>
+      <div class="info-grid"></div>
+    </div>
+
+    <!-- Full-width section: events -->
+    <div class="panel-card" id="events" style="margin-top:24px;">
+      <h2 class="panel-title">Collection Events</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Country</th>
+              <th>Province</th>
+              <th>Locality</th>
+              <th>Elevation</th>
+              <th>Coordinates</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
-    </section>
+    </div>
 
   </main>
 

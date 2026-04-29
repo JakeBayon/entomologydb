@@ -76,3 +76,5 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk.vscode/
 fetch-locations.js
+.github/
+cloudflare-worker/node_modules/

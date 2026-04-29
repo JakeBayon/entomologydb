@@ -136,7 +136,15 @@ export async function searchSpecies(filters = {}) {
   } else {
     queries = [...genusFilterSet].map((genus) => {
       const q = { Genus: `==${genus}`, Validity: 'Valid name' };
-      if (filters.scientificName) q.Species = `*${filters.scientificName}*`;
+      if (filters.scientificName) {
+        const fmQuery = filters.scientificName.replace(/\?/g, '@');
+        // If user already included wildcards, use as-is. Otherwise wrap in *
+        if (fmQuery.includes('*')) {
+          q.Species = fmQuery;
+        } else {
+          q.Species = `*${fmQuery}*`;
+        }
+      }
       return q;
     });
   }
@@ -168,6 +176,15 @@ export async function searchSpecies(filters = {}) {
       specimen_count: 0,
       locality_count: 0,
     };
+  });
+
+  // Exclude subspecies and varieties — Morse wants 1,714 species only
+  mapped = mapped.filter((s) => {
+    if (s.Subspecies) return false;
+    if (s.Species.includes(' var.')) return false;
+    if (s.Species.includes(' subsp.')) return false;
+    if (s.Species.includes(' f.')) return false;
+    return true;
   });
 
   if (speciesNameAllowlist) {

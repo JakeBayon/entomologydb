@@ -415,21 +415,13 @@
           body: formData
         });
 
-        const contentType = response.headers.get("content-type") || "";
-        let result = {};
-
-        if (contentType.includes("application/json")) {
-          result = await response.json();
-        } else {
-          const text = await response.text();
-          throw new Error(text || "Server returned a non-JSON response.");
-        }
+        const result = await response.json();
 
         if (!response.ok || !result.success) {
           throw new Error(result.error || "Submission failed.");
         }
 
-        showMessage("Your submission has been received and emailed successfully.", false);
+        showMessage("Your submission has been received successfully.", false);
 
         contactForm.reset();
         photoFileInput.value = "";
@@ -438,7 +430,6 @@
         document.getElementById("infoFileName").textContent = "";
       } catch (error) {
         showMessage(error.message || "Could not connect to the server.", true);
-        console.error(error);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit";
