@@ -86,8 +86,8 @@ body{
 .page{ min-height:calc(100vh - 76px); }
 
 .content{
-  padding:92px 0 0 110px;
-  max-width:900px;
+  padding:92px 40px 0 110px;  /* adds right breathing room */
+  max-width:1100px;           /* increases readable width */
 }
 
 h1{
