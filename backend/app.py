@@ -24,7 +24,7 @@ ALLOWED_EXTENSIONS = {
 
 EMAIL_SENDER = os.getenv("BRUCHINDB_EMAIL_SENDER", "bruchindb26@gmail.com")
 EMAIL_RECEIVER = os.getenv("BRUCHINDB_EMAIL_RECEIVER", "jbayon@sandiego.edu")
-EMAIL_APP_PASSWORD = os.getenv("qjwx bnzy idqp mmvb")
+EMAIL_APP_PASSWORD = os.getenv("qjwxbnzyidqpmmvb")
 
 
 def allowed_file(filename):
