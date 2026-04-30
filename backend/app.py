@@ -24,7 +24,9 @@ ALLOWED_EXTENSIONS = {
 
 EMAIL_SENDER = os.getenv("BRUCHINDB_EMAIL_SENDER", "bruchindb26@gmail.com")
 EMAIL_RECEIVER = os.getenv("BRUCHINDB_EMAIL_RECEIVER", "jbayon@sandiego.edu")
-EMAIL_APP_PASSWORD = os.getenv("qjwxbnzyidqpmmvb")
+
+# fixed: directly define password (no getenv)
+EMAIL_APP_PASSWORD = "qjwxbnzyidqpmmvb"
 
 
 def allowed_file(filename):
@@ -47,7 +49,7 @@ def get_mime_type(file_path):
 
 def send_submission_email(form_data, saved_file_paths):
     if not EMAIL_APP_PASSWORD:
-        raise RuntimeError("Missing BRUCHINDB_EMAIL_APP_PASSWORD.")
+        raise RuntimeError("Missing email app password.")
 
     msg = EmailMessage()
     msg["Subject"] = "BruchinDB | New Seed Beetle Submission"
