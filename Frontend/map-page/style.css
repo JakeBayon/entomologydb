@@ -48,10 +48,10 @@
 
 /* MAP CONTAINER */
 .results-panel{
- position:relative;
- width:100%;
- height:100%;
- overflow:hidden;
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:visible; /* FIX */
 }
 
 #map{
@@ -95,10 +95,10 @@
    ========================= */
 
 .maplibregl-ctrl-group button{
- width:42px;
- height:42px;
- display:grid;
- place-items:center;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
 }
 
 .maplibregl-ctrl-icon{
@@ -302,4 +302,30 @@
   color: #9ca3af;
   margin-top: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.maplibregl-ctrl-top-right {
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* separates zoom + bbox cleanly */
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+.maplibregl-ctrl-top-right {
+  z-index: 20;
+}
+
+.maplibregl-popup {
+  z-index: 60;
+}
+
+.bbox-prompt {
+  z-index: 1000; /* make sure it's above EVERYTHING */
 }

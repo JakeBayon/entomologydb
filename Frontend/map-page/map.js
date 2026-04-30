@@ -435,7 +435,8 @@ function renderPoints(points) {
   map.on("click", POINT_LAYER_ID, (e) => {
     const props = e.features[0].properties;
     const coords = e.features[0].geometry.coordinates.slice();
-    const rawSpecies = JSON.parse(props.species_json || "[]");
+    const point = allPoints.find(p => p.locality_id === props.locality_id);
+    const rawSpecies = point?.species || [];
     const localityName = props.locality_name || '';
     const country = props.country || '';
     const province = props.province || '';
@@ -644,6 +645,10 @@ async function loadSpecimenPoints() {
 
 map.on("load", () => {
   ensureBboxLayers();
+  // force re-add if lost
+  if (!map.getSource("user-bbox")) {
+    ensureBboxLayers();
+  }
   populateTribeFilter();
   loadSpecimenPoints();
 
@@ -729,7 +734,9 @@ map.on("click", (e) => {
   );
 
   renderPoints(filtered);
-  fitBoundsWithPanel([[west, south], [east, north]]);
+  setTimeout(() => {
+    fitBoundsWithPanel([[west, south], [east, north]]);
+    showBboxPrompt(currentBbox, filtered);
+  }, 50);
   setBboxMode(false);
-  showBboxPrompt(currentBbox, filtered);
 });
