@@ -335,8 +335,9 @@ function renderPoints(points) {
         locality_name: p.locality_name,
         country: p.country,
         province: p.province || "",
+        latitude: p.latitude,
+        longitude: p.longitude,
         species_count: p.species_count,
-        // species is [{name, genus, species}, ...] - serialize for GeoJSON
         species_json: JSON.stringify(p.species || []),
       },
     })),
@@ -439,6 +440,14 @@ function renderPoints(points) {
     const country = props.country || '';
     const province = props.province || '';
 
+    const lat = Number(props.latitude);
+    const lng = Number(props.longitude);
+
+    const coordsText =
+      !isNaN(lat) && !isNaN(lng)
+        ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+        : '';
+
     const secondaryParts = [province, country].filter(Boolean);
 
     // Normalize species to handle both formats:
@@ -454,40 +463,78 @@ function renderPoints(points) {
       return sp;
     });
 
+    const maxShow = 10;
+    const shown = species.slice(0, maxShow);
+
     let speciesHtml = '';
-    if (species.length > 0) {
-      const maxShow = 8;
-      const shown = species.slice(0, maxShow);
-      speciesHtml = '<div class="popup-species-list">' +
-        shown.map((sp) => {
-          const isUndetermined = sp.species === 'undetermined' || sp.species === 'sp' || !sp.species;
-          if (isUndetermined) {
-            return `<div class="popup-species-item popup-species-unid"><em>${escapeHtml(sp.name)}</em></div>`;
-          }
-          const searchQuery = `${sp.genus} ${sp.species}`.trim();
-          return `<a class="popup-species-item" href="../search-page/index.html?q=${encodeURIComponent(searchQuery)}&autoSearch=1"><em>${escapeHtml(sp.name)}</em></a>`;
-        }).join('') +
-        '</div>';
-      if (species.length > maxShow) {
-        speciesHtml += `<div class="popup-overflow">and ${species.length - maxShow} more</div>`;
-      }
+
+    if (shown.length > 0) {
+      speciesHtml = `
+        <div class="popup-species-list">
+          ${shown.map((sp) => {
+            const isUndetermined =
+              !sp.species ||
+              sp.species === 'undetermined' ||
+              sp.species === 'sp';
+
+            if (isUndetermined) {
+              return `
+                <div class="popup-species-item popup-species-unid">
+                  ${escapeHtml(sp.name)}
+                </div>
+              `;
+            }
+
+            const query = `${sp.genus} ${sp.species}`.trim();
+
+            return `
+              <a class="popup-species-item"
+                href="../search-page/index.html?q=${encodeURIComponent(query)}&autoSearch=1">
+                ${escapeHtml(sp.name)}
+              </a>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      speciesHtml = `<div class="popup-no-species">No species recorded</div>`;
     }
+
+    const moreHtml =
+      species.length > maxShow
+        ? `<div class="popup-more">+ ${species.length - maxShow} more</div>`
+        : '';
 
     const popupHtml = `
       <div class="locality-popup">
+
         <div class="popup-header">
           <div class="popup-title">${escapeHtml(localityName)}</div>
-          ${secondaryParts.length ? `<div class="popup-subtitle">${escapeHtml(secondaryParts.join(', '))}</div>` : ''}
+          ${
+            secondaryParts.length
+              ? `<div class="popup-subtitle">${escapeHtml(secondaryParts.join(', '))}</div>`
+              : ''
+          }
+          ${
+            coordsText
+              ? `<div class="popup-coords">${coordsText}</div>`
+              : ''
+          }
         </div>
+
         <div class="popup-body">
-          <div class="popup-count">${species.length} bruchid species</div>
+          <div class="popup-count">${species.length} species</div>
           ${speciesHtml}
+          ${moreHtml}
         </div>
+
         <div class="popup-footer">
-          <a class="popup-link" href="../search-page/index.html?countries=${encodeURIComponent(props.country)}&provinces=${encodeURIComponent(props.province)}&localities=${encodeURIComponent(props.locality_name)}">
-            View all in search <span class="popup-arrow">&rarr;</span>
+          <a class="popup-link"
+            href="../search-page/index.html?countries=${encodeURIComponent(props.country || '')}&provinces=${encodeURIComponent(props.province || '')}&localities=${encodeURIComponent(props.locality_name || '')}">
+            View in search →
           </a>
         </div>
+
       </div>
     `;
 
