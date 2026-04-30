@@ -2,8 +2,8 @@ name = "fm-proxy"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
 
-[vars]
-# These are overridden by secrets in the Cloudflare dashboard
-# FM_URL = ""
-# FM_USER = ""
-# FM_PASS = ""
+# Cron trigger: pre-warm the locality cache daily at 6am UTC
+# This runs the scheduled() handler so no real user ever hits a cold cache.
+# Adjust the time to whenever FileMaker Server is least busy.
+[triggers]
+crons = ["0 6 * * *"]

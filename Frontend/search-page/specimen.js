@@ -106,6 +106,7 @@ function renderSpecimen(sp) {
     infoItem('Province', sp.event_province),
     infoItem('County', sp.event_county),
     infoItem('Locality', sp.event_locality),
+    infoItem('Coordinates', new URLSearchParams(window.location.search).get('coords') || sp.event_coordinates || ''),
     infoItem('Date', sp.event_date),
     infoItem('Collector', sp.event_collector),
   ].filter(Boolean).join('') || '<p class="empty">No collection event recorded.</p>';

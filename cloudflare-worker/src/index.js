@@ -4,9 +4,10 @@
 // adds CORS headers, and caches responses to reduce FileMaker load.
 
 // Cache TTLs (seconds)
-const CACHE_TTL_SEARCH = 300;     // 5 min for _find queries
-const CACHE_TTL_IMAGE = 86400;    // 24 hours for images
-const CACHE_TTL_SPECIES = 3600;   // 1 hour for species detail
+const CACHE_TTL_SEARCH = 86400;   // 24 hours for _find queries
+const CACHE_TTL_IMAGE = 86400;      // 24 hours for images
+const CACHE_TTL_SPECIES = 3600;     // 1 hour for species detail
+const CACHE_TTL_LOCALITIES = 86400; // 24 hours for locality aggregate
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -83,12 +84,113 @@ async function fmFetch(env, database, path, method, body) {
 }
 
 // ============================================================
+// LOCALITY AGGREGATION
+// Fetches ALL localities from FileMaker in chunks, strips to
+// just coordinates + identifiers, and returns a single slim JSON.
+// This is the data source for the map page.
+// ============================================================
+
+async function fetchAllLocalities(env) {
+  const CHUNK_SIZE = 1000;
+  const MAX_OFFSET = 35000; // safety cap
+  const allLocalities = [];
+  let offset = 1;
+  let totalCount = 0;
+
+  while (offset < MAX_OFFSET) {
+    const res = await fmFetch(env, 'Event', '/layouts/Locality/_find', 'POST',
+      JSON.stringify({
+        query: [{ 'Country': '*' }],
+        limit: CHUNK_SIZE,
+        offset: offset,
+        'limit.Species_Locality': 500,
+      })
+    );
+
+    if (!res.ok) {
+      // If we get a 401 "no records" that means we've gone past the end
+      const text = await res.text();
+      if (text.includes('"401"')) break;
+      throw new Error(`Locality fetch failed at offset ${offset}: ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (!data.response?.data || data.response.data.length === 0) break;
+
+    if (offset === 1 && data.response?.dataInfo?.totalRecordCount) {
+      totalCount = data.response.dataInfo.totalRecordCount;
+    }
+
+    for (const record of data.response.data) {
+      const f = record.fieldData || {};
+      const lat = parseFloat(f['decimal latitude']);
+      const lng = parseFloat(f['decimal longitude']);
+
+      // Skip records without valid coordinates
+      if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) continue;
+
+      // Check if any bruchid species at this locality
+      // (Species_Locality portal has Family field)
+      const speciesPortal = record.portalData?.Species_Locality || [];
+      const bruchidSpecies = [];
+      let hasBruchid = false;
+
+      for (const sp of speciesPortal) {
+        if (sp['Species_Locality::Family'] === 'Bruchinae') {
+          hasBruchid = true;
+          const fullName = sp['Species_Locality::Full_name'] || '';
+          if (fullName) {
+            // Parse "Genus (Subgenus) species (Author, Year)" into parts
+            // Remove subgenus in parens at start, keep genus + species epithet
+            const cleaned = fullName.replace(/\([A-Z][a-z]*\.?\)\s*/g, '').trim();
+            const parts = cleaned.split(/\s+/);
+            const genus = parts[0] || '';
+            const epithet = parts[1] || '';
+            bruchidSpecies.push({
+              name: fullName,
+              genus: genus,
+              species: epithet,
+            });
+          }
+        }
+      }
+
+      // Only include localities with bruchid records
+      if (!hasBruchid) continue;
+
+      allLocalities.push({
+        id: f.Locality_ID || String(record.recordId) || '',
+        rid: String(record.recordId) || '',
+        lat: lat,
+        lng: lng,
+        country: f.Country || '',
+        province: f.province || '',
+        locality: f.locality || '',
+        species: bruchidSpecies,
+        speciesCount: bruchidSpecies.length,
+      });
+    }
+
+    // If we got fewer than CHUNK_SIZE, we're done
+    if (data.response.data.length < CHUNK_SIZE) break;
+    offset += CHUNK_SIZE;
+  }
+
+  return {
+    localities: allLocalities,
+    totalInDb: totalCount,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+
+// ============================================================
 // IMAGE PROXY
 // ============================================================
 
 async function getAllowedImageUrls(env, speciesId) {
   const res = await fmFetch(env, 'Species', '/layouts/Species/_find', 'POST',
-    JSON.stringify({ query: [{ Species_ID: `==${speciesId}` }], limit: 1 })
+    JSON.stringify({ query: [{ Species_ID: `==${speciesId}` }], limit: 1, 'limit.Related_images': 10000 })
   );
   if (!res.ok) return null;
   const data = await res.json();
@@ -341,6 +443,32 @@ export default {
         return jsonResponse({ error: 'Missing path' }, 400);
       }
 
+      // ---- LOCALITIES AGGREGATE ENDPOINT ----
+      if (pathParts === 'localities') {
+        const cache = caches.default;
+        const cacheKey = new Request(url.toString() + '?_v=localities_v1', { method: 'GET' });
+
+        // Check cache first
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) return cachedResponse;
+
+        // Fetch all localities from FileMaker (chunked)
+        const localityData = await fetchAllLocalities(env);
+
+        const response = new Response(JSON.stringify(localityData), {
+          status: 200,
+          headers: {
+            ...CORS_HEADERS,
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${CACHE_TTL_LOCALITIES}`,
+          },
+        });
+
+        // Cache it
+        ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        return response;
+      }
+
       // ---- IMAGE PROXY ----
       if (pathParts.startsWith('image/')) {
         // Check Cloudflare cache first
@@ -433,6 +561,102 @@ export default {
       return response;
     } catch (err) {
       return jsonResponse({ error: String(err) }, 500);
+    }
+  },
+
+  // ---- CRON TRIGGER: Pre-warm locality + genus caches ----
+  // Runs on a schedule so no real user pays the cold-query cost.
+  async scheduled(event, env, ctx) {
+    const cache = caches.default;
+    const workerUrl = 'https://fm-proxy.bruchindb.workers.dev';
+
+    // 1. Pre-warm localities
+    try {
+      const localityData = await fetchAllLocalities(env);
+      const cacheKey = new Request(workerUrl + '/localities?_v=localities_v1', { method: 'GET' });
+      const response = new Response(JSON.stringify(localityData), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `public, max-age=${CACHE_TTL_LOCALITIES}`,
+          ...CORS_HEADERS,
+        },
+      });
+      await cache.put(cacheKey, response);
+      console.log(`Pre-warmed locality cache: ${localityData.localities.length} bruchid localities`);
+    } catch (err) {
+      console.error('Cron locality pre-warm failed:', err);
+    }
+
+    // 2. Pre-warm genus queries for each tribe
+    // This is the slow query (~20s) that makes first search painful.
+    for (const tribe of ALLOWED_TRIBES) {
+      try {
+        const body = JSON.stringify({
+          query: [{ 'P::Tribe': tribe }],
+          limit: 1000,
+        });
+        const fmPath = '/layouts/Genus/_find';
+        const res = await fmFetch(env, 'Genus', fmPath, 'POST', body);
+        if (res.ok) {
+          let responseText = await res.text();
+          // Build the same cache key the normal proxy path would use
+          const fullUrl = workerUrl + '/Genus' + fmPath;
+          const cacheKey = await getCacheKey(fullUrl, body);
+          const cachedResponse = new Response(responseText, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': `public, max-age=${CACHE_TTL_SEARCH}`,
+              ...CORS_HEADERS,
+            },
+          });
+          await cache.put(cacheKey, cachedResponse);
+          console.log(`Pre-warmed genus cache for tribe: ${tribe}`);
+        }
+      } catch (err) {
+        console.error(`Cron genus pre-warm failed for ${tribe}:`, err);
+      }
+    }
+
+    // 3. Pre-warm the all-species search (most common query)
+    try {
+      const allGenera = [];
+      for (const tribe of ALLOWED_TRIBES) {
+        const res = await fmFetch(env, 'Genus', '/layouts/Genus/_find', 'POST',
+          JSON.stringify({ query: [{ 'P::Tribe': tribe }], limit: 1000 })
+        );
+        if (res.ok) {
+          const data = await res.json();
+          for (const r of (data.response?.data || [])) {
+            allGenera.push(r.fieldData.Genus);
+          }
+        }
+      }
+      const queries = allGenera.map((genus) => ({
+        Genus: `==${genus}`,
+        Validity: 'Valid name',
+      }));
+      const body = JSON.stringify({ query: queries, limit: 10000 });
+      const res = await fmFetch(env, 'Species', '/layouts/Lookup species/_find', 'POST', body);
+      if (res.ok) {
+        let responseText = await res.text();
+        responseText = stripSpeciesFields(responseText);
+        const fullUrl = workerUrl + '/Species/layouts/Lookup species/_find';
+        const cacheKey = await getCacheKey(fullUrl, body);
+        const cachedResponse = new Response(responseText, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': `public, max-age=${CACHE_TTL_SEARCH}`,
+            ...CORS_HEADERS,
+          },
+        });
+        await cache.put(cacheKey, cachedResponse);
+        console.log('Pre-warmed all-species search');
+      }
+    } catch (err) {
+      console.error('Cron species pre-warm failed:', err);
     }
   },
 };

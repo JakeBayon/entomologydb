@@ -1,8 +1,9 @@
 // Map page logic
-// Loads specimen localities from the API and renders them as clustered pins.
-// Clicking a pin or drawing a bounding box navigates to the search page.
+// Loads all bruchid localities from the cached /localities endpoint
+// and renders them as clustered pins. All filtering is client-side.
+// First load may take 1-2 minutes; subsequent loads are instant from cache.
 
-import { getMapPoints, getLocality } from '../shared/bruchindb-api.js';
+import { getMapPoints, getLocality, getLocalityCountries, TRIBES } from '../shared/bruchindb-api.js';
 import { polygonFromCorners } from './boundingbox-utils.js';
 
 
@@ -14,6 +15,8 @@ let bboxMode = false;
 let firstCorner = null;
 let bboxBtnEl = null;
 let currentBbox = null;
+let allPoints = []; // all loaded points, unfiltered
+let isLoaded = false;
 
 const BBOX_SOURCE_ID = "user-bbox";
 const BBOX_FILL_ID = "user-bbox-fill";
@@ -30,8 +33,6 @@ const DEFAULT_PADDING = 160;
 
 // ============================================================
 // MAP SETUP
-// Uses MapLibre's free demotiles style. It's basic but very fast.
-// To switch to a fancier style later, replace the style URL.
 // ============================================================
 
 const map = new maplibregl.Map({
@@ -48,8 +49,7 @@ map.addControl(nav, "top-right");
 
 
 // ============================================================
-// PIN MARKER (SVG loaded as map image)
-// Teardrop shape with a point at the bottom.
+// PIN MARKER
 // ============================================================
 
 const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
@@ -68,6 +68,38 @@ function loadPinImage() {
     };
     img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(PIN_SVG);
   });
+}
+
+
+// ============================================================
+// LOADING INDICATOR
+// ============================================================
+
+function showLoadingState(message) {
+  let el = document.getElementById('mapLoadingOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mapLoadingOverlay';
+    el.className = 'map-loading-overlay';
+    document.getElementById('map').parentNode.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="map-loading-content">
+      <div class="map-loading-spinner"></div>
+      <div class="map-loading-text">${message}</div>
+    </div>
+  `;
+  el.style.display = 'flex';
+}
+
+function hideLoadingState() {
+  const el = document.getElementById('mapLoadingOverlay');
+  if (el) el.style.display = 'none';
+}
+
+function updateLoadingState(message) {
+  const textEl = document.querySelector('.map-loading-text');
+  if (textEl) textEl.textContent = message;
 }
 
 
@@ -116,6 +148,8 @@ function clearBbox() {
   src.setData({ type: "Feature", geometry: { type: "Polygon", coordinates: [[]] } });
   currentBbox = null;
   hideBboxPrompt();
+  // Show all points again
+  if (isLoaded) renderPoints(allPoints);
 }
 
 function setBboxPreview(a, b) {
@@ -187,43 +221,43 @@ map.addControl(new BBoxControl(), "top-right");
 
 // ============================================================
 // BBOX RESULTS PROMPT
-// Floating button that appears after a bbox is drawn,
-// asking the user if they want to view results in the search page.
 // ============================================================
 
-function showBboxPrompt(bounds) {
+function showBboxPrompt(bounds, filteredPoints) {
   hideBboxPrompt();
 
-  // Count species inside the bounds (using mock or real API)
-  getMapPoints({ bounds }).then((points) => {
-    const speciesIds = new Set();
-    points.forEach((p) => p.species_ids.forEach((id) => speciesIds.add(id)));
+  // Count unique species across filtered points
+  const speciesNames = new Set();
+  for (const p of filteredPoints) {
+    for (const sp of (p.species || [])) {
+      speciesNames.add(typeof sp === 'string' ? sp : sp.name);
+    }
+  }
 
-    const promptEl = document.createElement("div");
-    promptEl.className = "bbox-prompt";
-    promptEl.id = "bboxPrompt";
-    promptEl.innerHTML = `
-      <span>${speciesIds.size} species in this area</span>
-      <button type="button">View results →</button>
-      <button type="button" class="close-btn" aria-label="Close">×</button>
-    `;
+  const promptEl = document.createElement("div");
+  promptEl.className = "bbox-prompt";
+  promptEl.id = "bboxPrompt";
+  promptEl.innerHTML = `
+    <span>${filteredPoints.length} localities, ${speciesNames.size} species</span>
+    <button type="button">View in search &rarr;</button>
+    <button type="button" class="close-btn" aria-label="Close">&times;</button>
+  `;
 
-    promptEl.querySelector("button:not(.close-btn)").addEventListener("click", () => {
-      const params = new URLSearchParams({
-        west: bounds.west,
-        south: bounds.south,
-        east: bounds.east,
-        north: bounds.north,
-      });
-      window.location.href = `../search-page/index.html?${params}`;
+  promptEl.querySelector("button:not(.close-btn)").addEventListener("click", () => {
+    const params = new URLSearchParams({
+      west: bounds.west,
+      south: bounds.south,
+      east: bounds.east,
+      north: bounds.north,
     });
-
-    promptEl.querySelector(".close-btn").addEventListener("click", () => {
-      hideBboxPrompt();
-    });
-
-    document.body.appendChild(promptEl);
+    window.location.href = `../search-page/index.html?${params}`;
   });
+
+  promptEl.querySelector(".close-btn").addEventListener("click", () => {
+    hideBboxPrompt();
+  });
+
+  document.body.appendChild(promptEl);
 }
 
 function hideBboxPrompt() {
@@ -233,157 +267,272 @@ function hideBboxPrompt() {
 
 
 // ============================================================
-// SPECIMEN MARKERS WITH CLUSTERING
+// RENDER POINTS ON MAP
+// ============================================================
+
+function renderPoints(points) {
+  const geojson = {
+    type: "FeatureCollection",
+    features: points.map((p) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
+      properties: {
+        locality_id: p.locality_id,
+        locality_name: p.locality_name,
+        country: p.country,
+        province: p.province || "",
+        species_count: p.species_count,
+        // species is [{name, genus, species}, ...] - serialize for GeoJSON
+        species_json: JSON.stringify(p.species || []),
+      },
+    })),
+  };
+
+  if (map.getSource(SPECIMENS_SOURCE_ID)) {
+    map.getSource(SPECIMENS_SOURCE_ID).setData(geojson);
+    return;
+  }
+
+  map.addSource(SPECIMENS_SOURCE_ID, {
+    type: "geojson",
+    data: geojson,
+    cluster: true,
+    clusterMaxZoom: 8,
+    clusterRadius: 40,
+    clusterProperties: {
+      total_species: ["+", ["get", "species_count"]],
+    },
+  });
+
+  // Cluster circles
+  map.addLayer({
+    id: CLUSTERS_LAYER_ID,
+    type: "circle",
+    source: SPECIMENS_SOURCE_ID,
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-color": [
+        "step",
+        ["get", "point_count"],
+        "#76b476",
+        20, "#f1a93b",
+        100, "#e67e22",
+      ],
+      "circle-radius": [
+        "step",
+        ["get", "point_count"],
+        18,
+        20, 26,
+        100, 34,
+      ],
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+
+  // Cluster count text
+  map.addLayer({
+    id: CLUSTER_COUNT_LAYER_ID,
+    type: "symbol",
+    source: SPECIMENS_SOURCE_ID,
+    filter: ["has", "point_count"],
+    layout: {
+      "text-field": ["get", "point_count"],
+      "text-font": ["Noto Sans Regular"],
+      "text-size": 13,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#ffffff",
+    },
+  });
+
+  // Individual point markers (pin shape)
+  map.addLayer({
+    id: POINT_LAYER_ID,
+    type: "symbol",
+    source: SPECIMENS_SOURCE_ID,
+    filter: ["!", ["has", "point_count"]],
+    layout: {
+      "icon-image": PIN_IMAGE_ID,
+      "icon-anchor": "bottom",
+      "icon-size": 0.85,
+      "icon-allow-overlap": true,
+    },
+  });
+
+  // Click cluster: zoom in
+  map.on("click", CLUSTERS_LAYER_ID, (e) => {
+    const features = map.queryRenderedFeatures(e.point, { layers: [CLUSTERS_LAYER_ID] });
+    const clusterId = features[0].properties.cluster_id;
+    const source = map.getSource(SPECIMENS_SOURCE_ID);
+    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+      if (err) return;
+      map.easeTo({
+        center: features[0].geometry.coordinates,
+        zoom: zoom,
+      });
+    });
+  });
+
+  // Click individual pin: show popup with species list
+  map.on("click", POINT_LAYER_ID, (e) => {
+    const props = e.features[0].properties;
+    const coords = e.features[0].geometry.coordinates.slice();
+    const rawSpecies = JSON.parse(props.species_json || "[]");
+    const localityName = props.locality_name || '';
+    const country = props.country || '';
+    const province = props.province || '';
+
+    const secondaryParts = [province, country].filter(Boolean);
+
+    // Normalize species to handle both formats:
+    // Old format: plain string "Genus species (Author, Year)"
+    // New format: {name, genus, species}
+    const species = rawSpecies.map((sp) => {
+      if (typeof sp === 'string') {
+        // Parse "Genus (Subgenus) species (Author, Year)" from string
+        const cleaned = sp.replace(/\([A-Z][a-z]*\.?\)\s*/g, '').trim();
+        const parts = cleaned.split(/\s+/);
+        return { name: sp, genus: parts[0] || '', species: parts[1] || '' };
+      }
+      return sp;
+    });
+
+    let speciesHtml = '';
+    if (species.length > 0) {
+      const maxShow = 8;
+      const shown = species.slice(0, maxShow);
+      speciesHtml = '<div class="popup-species-list">' +
+        shown.map((sp) => {
+          const isUndetermined = sp.species === 'undetermined' || sp.species === 'sp' || !sp.species;
+          if (isUndetermined) {
+            return `<div class="popup-species-item popup-species-unid"><em>${escapeHtml(sp.name)}</em></div>`;
+          }
+          const searchQuery = `${sp.genus} ${sp.species}`.trim();
+          return `<a class="popup-species-item" href="../search-page/index.html?q=${encodeURIComponent(searchQuery)}&autoSearch=1"><em>${escapeHtml(sp.name)}</em></a>`;
+        }).join('') +
+        '</div>';
+      if (species.length > maxShow) {
+        speciesHtml += `<div class="popup-overflow">and ${species.length - maxShow} more</div>`;
+      }
+    }
+
+    const popupHtml = `
+      <div class="locality-popup">
+        <div class="popup-header">
+          <div class="popup-title">${escapeHtml(localityName)}</div>
+          ${secondaryParts.length ? `<div class="popup-subtitle">${escapeHtml(secondaryParts.join(', '))}</div>` : ''}
+        </div>
+        <div class="popup-body">
+          <div class="popup-count">${species.length} bruchid species</div>
+          ${speciesHtml}
+        </div>
+        <div class="popup-footer">
+          <a class="popup-link" href="../search-page/index.html?countries=${encodeURIComponent(props.country)}&provinces=${encodeURIComponent(props.province)}&localities=${encodeURIComponent(props.locality_name)}">
+            View all in search <span class="popup-arrow">&rarr;</span>
+          </a>
+        </div>
+      </div>
+    `;
+
+    new maplibregl.Popup({ maxWidth: '320px', closeButton: true })
+      .setLngLat(coords)
+      .setHTML(popupHtml)
+      .addTo(map);
+  });
+
+  // Cursor changes
+  [CLUSTERS_LAYER_ID, POINT_LAYER_ID].forEach((layer) => {
+    map.on("mouseenter", layer, () => {
+      if (!bboxMode) map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", layer, () => {
+      if (!bboxMode) map.getCanvas().style.cursor = "";
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+
+// ============================================================
+// LOAD ALL SPECIMEN POINTS
 // ============================================================
 
 async function loadSpecimenPoints() {
   try {
     await loadPinImage();
 
-    // Read filters from URL so map matches search page
+    showLoadingState('Loading localities...');
+
+    const points = await getMapPoints({}, (progress) => {
+      if (progress.phase === 'fetching') {
+        updateLoadingState('Fetching locality data...');
+      } else if (progress.phase === 'filtering') {
+        updateLoadingState(`Loaded ${progress.loaded.toLocaleString()} localities`);
+      }
+    });
+
+    allPoints = points;
+    isLoaded = true;
+
+    hideLoadingState();
+
+    if (points.length === 0) {
+      showLoadingState('No localities with coordinates found');
+      return;
+    }
+
+    renderPoints(points);
+
+    // Update stats in header if element exists
+    const statsEl = document.getElementById('mapStats');
+    if (statsEl) {
+      const speciesNames = new Set();
+      for (const p of points) {
+        for (const sp of (p.species || [])) {
+          speciesNames.add(typeof sp === 'string' ? sp : sp.name);
+        }
+      }
+      statsEl.textContent = `${points.length.toLocaleString()} localities, ${speciesNames.size.toLocaleString()} species`;
+    }
+
+    // Check URL for initial bounding box
     const params = new URLSearchParams(window.location.search);
-    const filters = {};
     if (params.has('west')) {
-      filters.bounds = {
+      const bounds = {
         west: parseFloat(params.get('west')),
         south: parseFloat(params.get('south')),
         east: parseFloat(params.get('east')),
         north: parseFloat(params.get('north')),
       };
+      currentBbox = bounds;
+
+      // Filter and re-render for the bbox
+      const filtered = points.filter((p) =>
+        p.latitude >= bounds.south && p.latitude <= bounds.north &&
+        p.longitude >= bounds.west && p.longitude <= bounds.east
+      );
+      renderPoints(filtered);
+
+      // Draw the bbox on the map
+      ensureBboxLayers();
+      setBboxPreview(
+        { lng: bounds.west, lat: bounds.south },
+        { lng: bounds.east, lat: bounds.north }
+      );
+      fitBoundsWithPanel([[bounds.west, bounds.south], [bounds.east, bounds.north]]);
+      showBboxPrompt(bounds, filtered);
     }
-    const points = await getMapPoints(filters);
-
-    const geojson = {
-      type: "FeatureCollection",
-      features: points.map((p) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
-        properties: {
-          locality_id: p.locality_id,
-          locality_name: p.locality_name,
-          country: p.country,
-          province: p.province || "",
-          specimen_count: p.specimen_count,
-          species_count: p.species_count,
-          // Store species_ids as a JSON string so it survives the geojson roundtrip
-          species_ids_json: JSON.stringify(p.species_ids),
-        },
-      })),
-    };
-
-    if (map.getSource(SPECIMENS_SOURCE_ID)) {
-      map.getSource(SPECIMENS_SOURCE_ID).setData(geojson);
-      return;
-    }
-
-    map.addSource(SPECIMENS_SOURCE_ID, {
-      type: "geojson",
-      data: geojson,
-      cluster: true,
-      clusterMaxZoom: 5,
-      clusterRadius: 40,
-      clusterProperties: {
-        total_specimens: ["+", ["get", "specimen_count"]],
-      },
-    });
-
-    // Cluster circles
-    map.addLayer({
-      id: CLUSTERS_LAYER_ID,
-      type: "circle",
-      source: SPECIMENS_SOURCE_ID,
-      filter: ["has", "point_count"],
-      paint: {
-        "circle-color": [
-          "step",
-          ["get", "total_specimens"],
-          "#76b476",
-          100, "#f1a93b",
-          500, "#e67e22",
-        ],
-        "circle-radius": [
-          "step",
-          ["get", "total_specimens"],
-          20,
-          100, 28,
-          500, 36,
-        ],
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#ffffff",
-      },
-    });
-
-    // Cluster count text
-    map.addLayer({
-      id: CLUSTER_COUNT_LAYER_ID,
-      type: "symbol",
-      source: SPECIMENS_SOURCE_ID,
-      filter: ["has", "point_count"],
-      layout: {
-        "text-field": ["get", "total_specimens"],
-        "text-font": ["Noto Sans Regular"],
-        "text-size": 14,
-        "text-allow-overlap": true,
-        "text-ignore-placement": true,
-      },
-      paint: {
-        "text-color": "#ffffff",
-      },
-    });
-
-    // Individual point markers (pin shape)
-    map.addLayer({
-      id: POINT_LAYER_ID,
-      type: "symbol",
-      source: SPECIMENS_SOURCE_ID,
-      filter: ["!", ["has", "point_count"]],
-      layout: {
-        "icon-image": PIN_IMAGE_ID,
-        "icon-anchor": "bottom",
-        "icon-size": 0.85,
-        "icon-allow-overlap": true,
-      },
-    });
-
-    // Click cluster: zoom in
-    map.on("click", CLUSTERS_LAYER_ID, (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [CLUSTERS_LAYER_ID] });
-      const clusterId = features[0].properties.cluster_id;
-      const source = map.getSource(SPECIMENS_SOURCE_ID);
-      source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-        if (err) return;
-        map.easeTo({
-          center: features[0].geometry.coordinates,
-          zoom: zoom,
-        });
-      });
-    });
-
-    // Click individual pin: navigate to search page (or species page if single)
-    map.on("click", POINT_LAYER_ID, (e) => {
-      const props = e.features[0].properties;
-      const speciesIds = JSON.parse(props.species_ids_json || "[]");
-
-      if (speciesIds.length === 1) {
-        // Single species at this locality - go straight to species page
-        window.location.href = `../search-page/species.html?id=${encodeURIComponent(speciesIds[0])}`;
-      } else {
-        // Multiple species - go to search page filtered by this locality
-        window.location.href = `../search-page/index.html?localityId=${encodeURIComponent(props.locality_id)}`;
-      }
-    });
-
-    // Cursor changes
-    [CLUSTERS_LAYER_ID, POINT_LAYER_ID].forEach((layer) => {
-      map.on("mouseenter", layer, () => {
-        if (!bboxMode) map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", layer, () => {
-        if (!bboxMode) map.getCanvas().style.cursor = "";
-      });
-    });
   } catch (err) {
     console.error("Failed to load specimen points:", err);
+    showLoadingState('Failed to load locality data. Please refresh.');
   }
 }
 
@@ -407,17 +556,23 @@ map.on("load", () => {
     worldBtn.addEventListener("click", (e) => {
       e.preventDefault();
       setBboxMode(false);
+      clearBbox();
       fitBoundsWithPanel([[-180, -85], [180, 85]]);
     });
     navContainer.appendChild(worldBtn);
   }
+
   // Hide grid lines from demotiles style
   ['countries-boundary', 'geolines'].forEach((layerId) => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
 });
 
-// Bounding box drawing handlers
+
+// ============================================================
+// BOUNDING BOX DRAWING HANDLERS
+// ============================================================
+
 map.on("mousemove", (e) => {
   if (!bboxMode || !firstCorner) return;
   setBboxPreview(firstCorner, e.lngLat);
@@ -441,7 +596,15 @@ map.on("click", (e) => {
   const north = Math.max(firstCorner.lat, secondCorner.lat);
 
   currentBbox = { west, south, east, north };
+
+  // Filter the already-loaded points client-side (instant)
+  const filtered = allPoints.filter((p) =>
+    p.latitude >= south && p.latitude <= north &&
+    p.longitude >= west && p.longitude <= east
+  );
+
+  renderPoints(filtered);
   fitBoundsWithPanel([[west, south], [east, north]]);
   setBboxMode(false);
-  showBboxPrompt(currentBbox);
+  showBboxPrompt(currentBbox, filtered);
 });

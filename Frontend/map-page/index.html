@@ -6,19 +6,18 @@
   <title>Map | BruchinDB</title>
 
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="../search-page/style.css" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
 
-  <!-- Top Nav Bar -->
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="../search-page/index.html">
         <img src="./icons/bruchindb-logo.png" alt="BruchinDB logo" class="brand-logo" />
         <span class="brand-name">BruchinDB</span>
       </a>
-
       <nav class="nav" aria-label="Primary">
         <a class="nav-link" href="../search-page/index.html">Search</a>
         <a class="nav-link active" href="../map-page/index.html">Map</a>
@@ -31,25 +30,32 @@
 
   <div class="search-layout" id="searchLayout">
 
-    <!-- LEFT FILTER PANEL -->
     <aside class="filter-panel" id="filterPanel">
 
-      <div class="filter-header">
-        <h2>Search</h2>
-      </div>
-
-      <!-- Scientific Name -->
       <div class="filter-section">
         <div class="filter-title" data-section-toggle>
           Scientific Name
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter scientific name..." />
+          <input type="text" id="sci-name-search" placeholder="Type to search..." autocomplete="off" />
+          <div id="sci-name-suggestions" class="sci-name-suggestions"></div>
+          <div class="chip-list" id="selectedChips"></div>
         </div>
       </div>
 
-      <!-- Location -->
+      <div class="filter-section">
+        <div class="filter-title" data-section-toggle>
+          Tribe
+          <span class="arrow">&#9662;</span>
+        </div>
+        <div class="filter-content">
+          <select id="filter-tribe">
+            <option value="">Any tribe</option>
+          </select>
+        </div>
+      </div>
+
       <div class="filter-section">
         <div class="filter-title" data-section-toggle>
           Location
@@ -57,73 +63,42 @@
         </div>
         <div class="filter-content">
           <div class="location-group">
-            <input type="text" placeholder="Country..." />
+            <input type="text" id="filter-country" placeholder="Country..." autocomplete="off" />
+            <div id="country-suggestions" class="autocomplete-suggestions"></div>
+            <div id="country-chips" class="chip-list"></div>
           </div>
           <div class="location-group">
-            <input type="text" placeholder="Province / State..." />
+            <input type="text" id="province-input" placeholder="Province / State..." autocomplete="off" />
+            <div id="province-suggestions" class="autocomplete-suggestions"></div>
+            <div id="province-chips" class="chip-list"></div>
           </div>
           <div class="location-group">
-            <input type="text" placeholder="County..." />
-          </div>
-          <div class="location-group">
-            <input type="number" placeholder="Minimum elevation (m)..." min="0" />
+            <input type="text" id="locality-input" placeholder="Locality..." autocomplete="off" />
+            <div id="locality-suggestions" class="autocomplete-suggestions"></div>
+            <div id="locality-chips" class="chip-list"></div>
           </div>
         </div>
       </div>
 
-      <!-- Host Plant -->
       <div class="filter-section">
         <div class="filter-title" data-section-toggle>
           Host Plant
           <span class="arrow">&#9662;</span>
         </div>
         <div class="filter-content">
-          <input type="text" placeholder="Enter host plant..." />
-          <select>
-            <option value="">Select family</option>
-            <option>Fabaceae</option>
-            <option>Poaceae</option>
-            <option>Asteraceae</option>
-          </select>
+          <p class="filter-hint">Available once host plant data is added to the search layout.</p>
         </div>
       </div>
 
-      <!-- Image-Only Species -->
-      <div class="filter-section">
-        <div class="filter-title" data-section-toggle>
-          Image-Only Species
-          <span class="arrow">&#9662;</span>
-        </div>
-        <div class="filter-content">
-          <label class="checkbox-label">
-            <span class="checkbox-text">Show only species with images</span>
-            <span class="checkbox-box">
-              <input type="checkbox" />
-            </span>
-          </label>
-        </div>
+      <div class="filter-actions">
+        <button type="button" id="searchBtn" class="btn-primary">Search</button>
+        <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
       </div>
 
-      <!-- Higher Taxa -->
-      <div class="filter-section">
-        <div class="filter-title" data-section-toggle>
-          Higher Taxa
-          <span class="arrow">&#9662;</span>
-        </div>
-        <div class="filter-content">
-          <select>
-            <option value="">Select rank</option>
-            <option>Subfamily</option>
-            <option>Tribe</option>
-            <option>Genus</option>
-          </select>
-          <input type="text" placeholder="Enter higher taxon..." />
-        </div>
-      </div>
+      <div id="active-filters" class="active-filters"></div>
 
     </aside>
 
-    <!-- MAP PANEL -->
     <main class="results-panel">
       <div id="map"></div>
     </main>
