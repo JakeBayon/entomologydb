@@ -78,3 +78,5 @@ $RECYCLE.BIN/
 fetch-locations.js
 .github/
 cloudflare-worker/node_modules/
+node_modules/
+cloudflare-worker/node_modules/
