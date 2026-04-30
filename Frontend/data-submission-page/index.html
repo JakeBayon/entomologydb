@@ -38,34 +38,52 @@
 
     <section class="blue-section">
       <div class="blue-inner">
-        <!-- Upload Photo block -->
-        <div class="form-section">
-          <h2>Upload Photos</h2>
 
-          <div
-            class="dropzone"
-            role="button"
-            tabindex="0"
-            aria-label="Upload a photo file"
-            data-input-id="photoFile"
-          >
-            <div class="dropzone-box">
-              <div class="dz-icon" aria-hidden="true">☁︎</div>
-              <div class="dz-title">Upload a File</div>
-              <div class="dz-sub">Drag and drop files here</div>
-              <div class="file-name" id="photoFileName" aria-live="polite"></div>
+        <form
+          class="contact-form"
+          id="contactForm"
+          name="bruchindb-submission"
+          method="POST"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+          enctype="multipart/form-data"
+          novalidate
+        >
+          <input type="hidden" name="form-name" value="bruchindb-submission" />
+          <input type="hidden" name="subject" value="BruchinDB | New Seed Beetle Submission" />
+
+          <p class="hidden">
+            <label>Do not fill this out: <input name="bot-field" /></label>
+          </p>
+
+          <!-- Upload Photo block -->
+          <section class="form-section">
+            <h2>Upload Photos</h2>
+
+            <div
+              class="dropzone"
+              role="button"
+              tabindex="0"
+              aria-label="Upload a photo file"
+              data-input-id="photoFile"
+            >
+              <div class="dropzone-box">
+                <div class="dz-icon" aria-hidden="true">☁︎</div>
+                <div class="dz-title">Upload a File</div>
+                <div class="dz-sub">Drag and drop files here</div>
+                <div class="file-name" id="photoFileName" aria-live="polite"></div>
+              </div>
             </div>
-          </div>
 
-          <input
-            class="file-input hidden-input"
-            id="photoFile"
-            type="file"
-            aria-label="Choose photo file to upload"
-          />
-        </div>
+            <input
+              class="file-input hidden-input"
+              id="photoFile"
+              name="photoFile"
+              type="file"
+              aria-label="Choose photo file to upload"
+            />
+          </section>
 
-        <form class="contact-form" id="contactForm" action="#" method="post" novalidate>
           <!-- Locality -->
           <section class="form-section">
             <h2>Locality</h2>
@@ -263,6 +281,7 @@
             <input
               class="file-input hidden-input"
               id="infoFile"
+              name="infoFile"
               type="file"
               aria-label="Choose additional information file to upload"
             />
@@ -281,22 +300,12 @@
   </main>
 
   <script>
-    const BACKEND_URL = "http://127.0.0.1:5000/upload";
-
     const submitBtn = document.getElementById("submitBtn");
     const confirmation = document.getElementById("confirmationMessage");
-    const firstNameInput = document.getElementById("firstName");
-    const lastNameInput = document.getElementById("lastName");
+    const contactForm = document.getElementById("contactForm");
     const emailInput = document.getElementById("email");
-    const latitudeInput = document.getElementById("latitude");
-    const longitudeInput = document.getElementById("longitude");
-    const locationDescriptionInput = document.getElementById("locationDescription");
-    const hostPlantNameInput = document.getElementById("hostPlantName");
-    const collectionDateInput = document.getElementById("collectionDate");
-    const descriptionInput = document.getElementById("description");
     const photoFileInput = document.getElementById("photoFile");
     const infoFileInput = document.getElementById("infoFile");
-    const contactForm = document.getElementById("contactForm");
 
     function showMessage(message, isError = false) {
       confirmation.textContent = message;
@@ -349,87 +358,41 @@
       clearMessage();
     });
 
-    [
-      firstNameInput,
-      lastNameInput,
-      emailInput,
-      latitudeInput,
-      longitudeInput,
-      locationDescriptionInput,
-      hostPlantNameInput,
-      collectionDateInput,
-      descriptionInput
-    ].forEach((input) => {
+    contactForm.querySelectorAll("input").forEach((input) => {
       input.addEventListener("input", clearMessage);
-    });
-
-    document.querySelectorAll('input[name="hostType"]').forEach((input) => {
       input.addEventListener("change", clearMessage);
     });
 
     submitBtn.addEventListener("click", async () => {
-      const firstName = firstNameInput.value.trim();
-      const lastName = lastNameInput.value.trim();
-      const email = emailInput.value.trim();
-      const latitude = latitudeInput.value.trim();
-      const longitude = longitudeInput.value.trim();
-      const locationDescription = locationDescriptionInput.value.trim();
-      const hostPlantName = hostPlantNameInput.value.trim();
-      const collectionDate = collectionDateInput.value.trim();
-      const description = descriptionInput.value.trim();
-      const selectedHostType = document.querySelector('input[name="hostType"]:checked');
-
       clearMessage();
 
-      if (email && !emailInput.checkValidity()) {
+      if (emailInput.value.trim() && !emailInput.checkValidity()) {
         showMessage("Please enter a valid email address.", true);
         return;
-      }
-
-      const formData = new FormData();
-      formData.append("firstName", firstName);
-      formData.append("lastName", lastName);
-      formData.append("email", email);
-      formData.append("latitude", latitude);
-      formData.append("longitude", longitude);
-      formData.append("locationDescription", locationDescription);
-      formData.append("hostPlantName", hostPlantName);
-      formData.append("hostType", selectedHostType ? selectedHostType.value : "");
-      formData.append("collectionDate", collectionDate);
-      formData.append("description", description);
-
-      if (photoFileInput.files.length > 0) {
-        formData.append("photoFile", photoFileInput.files[0]);
-      }
-
-      if (infoFileInput.files.length > 0) {
-        formData.append("infoFile", infoFileInput.files[0]);
       }
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
 
       try {
-        const response = await fetch(BACKEND_URL, {
+        const formData = new FormData(contactForm);
+
+        const response = await fetch("/", {
           method: "POST",
           body: formData
         });
 
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || "Submission failed.");
+        if (!response.ok) {
+          throw new Error("Submission failed.");
         }
 
         showMessage("Your submission has been received successfully.", false);
 
         contactForm.reset();
-        photoFileInput.value = "";
-        infoFileInput.value = "";
         document.getElementById("photoFileName").textContent = "";
         document.getElementById("infoFileName").textContent = "";
       } catch (error) {
-        showMessage(error.message || "Could not connect to the server.", true);
+        showMessage("Submission failed. Please try again.", true);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit";
