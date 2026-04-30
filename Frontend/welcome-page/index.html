@@ -26,19 +26,16 @@
       <div class="hero-mark">
 
         <div class="hero-logo-wrapper">
-        <img src="./icons/white_beetle.png" alt="BruchinDB logo" class="hero-logo">
+          <img src="./icons/white_beetle.png" alt="BruchinDB logo" class="hero-logo">
         </div>
 
         <div class="hero-copy">
           <h1 class="welcome-title">BruchinDB</h1>
-          <p class="welcome-subtitle">Sharing seed beetle data globally</p>
+          <p class="welcome-subtitle">SHARING SEED BEETLE DATA GLOBALLY</p>
 
           <div class="welcome-actions">
-            <a href="../search-page/index.html" class="welcome-btn welcome-btn-solid" data-login-transition>Login</a>
-            <a href="#" class="welcome-btn welcome-btn-outline">Sign Up</a>
+            <a href="../search-page/index.html" class="welcome-btn welcome-btn-solid" data-enter-transition>Enter</a>
           </div>
-
-          <a href="#" class="guest-link">Continue as guest</a>
         </div>
       </div>
     </section>
@@ -87,13 +84,13 @@
   </main>
 
   <script>
-    const loginButton = document.querySelector("[data-login-transition]");
+    const enterButton = document.querySelector("[data-enter-transition]");
     const transitionOverlay = document.querySelector(".page-transition-overlay");
 
     // Keep navigation accessible: reduced-motion users and no-JS users go straight to Search.
-    if (loginButton && transitionOverlay) {
-      loginButton.addEventListener("click", (event) => {
-        const searchUrl = loginButton.href;
+    if (enterButton && transitionOverlay) {
+      enterButton.addEventListener("click", (event) => {
+        const searchUrl = enterButton.href;
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
         if (prefersReducedMotion) {
