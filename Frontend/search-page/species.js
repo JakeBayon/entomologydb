@@ -79,7 +79,7 @@ async function loadSpecies() {
     return;
   }
 
-  const cached = sessionStorage.getItem('species:' + speciesId);
+  const cached = sessionStorage.getItem('species_v2:' + speciesId);
   if (cached) {
     try {
       const species = JSON.parse(cached);
@@ -94,7 +94,7 @@ async function loadSpecies() {
   try {
     const species = await getSpecies(speciesId);
     if (species) {
-      sessionStorage.setItem('species:' + speciesId, JSON.stringify(species));
+      sessionStorage.setItem('species_v2:' + speciesId, JSON.stringify(species));
     }
     if (!species) {
       titleEl.textContent = 'Species not found';
@@ -194,19 +194,33 @@ function renderImages(s) {
     return;
   }
   const proxyBase = CONFIG.fileMakerUrl + '/image/' + encodeURIComponent(s.Species_ID);
-  lightboxImages = s.images.map((img, idx) => ({
-    url: `${proxyBase}/${idx}`,
-    category: img.category,
-    caption: img.caption,
-    source: img.source,
-    copyright: img.copyright,
-  }));
+  lightboxImages = s.images
+    .map((img) => ({
+      url: `${proxyBase}/${img.originalIndex != null ? img.originalIndex : 0}`,
+      category: img.category,
+      caption: img.caption,
+      source: img.source,
+      copyright: img.copyright,
+      hasFile: !!(img.url && img.url.length > 0),
+    }))
+    .filter((img) => img.hasFile);
 
   if (tabbedView) {
     renderImagesGrouped(container);
   } else {
     renderImagesHero(container);
   }
+  // Cache the first dorsal image URL for search page cards
+  try {
+    const dorsalImg = lightboxImages.find((img) =>
+      img.category && img.category.toLowerCase().includes('dorsal')
+    );
+    if (dorsalImg) {
+      const thumbCache = JSON.parse(localStorage.getItem('speciesThumbs') || '{}');
+      thumbCache[s.Species_ID] = dorsalImg.url;
+      localStorage.setItem('speciesThumbs', JSON.stringify(thumbCache));
+    }
+  } catch (e) {}
 }
 
 function renderImagesHero(container) {
@@ -214,110 +228,153 @@ function renderImagesHero(container) {
     const parts = category.split(':');
     return parts.length > 1 ? parts.slice(1).join(':').trim() : category.trim();
   };
-  const angles = [...new Set(lightboxImages.map((img) => getAngle(img.category)))].sort();
-  const selectedAngles = new Set();
-
+ 
+  // Group images by angle/view
+  const angleGroups = {};
+  lightboxImages.forEach((img, idx) => {
+    const group = getAngle(img.category);
+    if (!angleGroups[group]) angleGroups[group] = [];
+    angleGroups[group].push({ ...img, globalIndex: idx });
+  });
+ 
+  // Sort groups: dorsal first, then alphabetical
+  const angleGroupNames = Object.keys(angleGroups).sort((a, b) => {
+    const aIsDorsal = a.toLowerCase().includes('dorsal');
+    const bIsDorsal = b.toLowerCase().includes('dorsal');
+    if (aIsDorsal && !bIsDorsal) return -1;
+    if (!aIsDorsal && bIsDorsal) return 1;
+    return a.localeCompare(b);
+  });
+ 
+  let sortMode = 'angle'; // 'angle' or 'all'
+ 
   function render() {
-    const visible = selectedAngles.size === 0
-      ? lightboxImages
-      : lightboxImages.filter((img) => selectedAngles.has(getAngle(img.category)));
-
-    if (visible.length === 0) {
-      container.innerHTML = `<p class="empty">No images match the selected filters.</p>`;
+    if (sortMode === 'all') {
+      renderAllGrid(container);
       return;
     }
-
-    const heroIdx = lightboxImages.indexOf(visible[0]);
-
+ 
     container.innerHTML = `
-      ${angles.length > 1 ? `
-        <div class="image-angle-controls-compact">
-          <select id="hero-angle-select">
-            <option value="">+ Filter by view...</option>
-            ${angles.filter((a) => !selectedAngles.has(a)).map((a) => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('')}
-          </select>
-          <div id="hero-angle-chips"></div>
-        </div>
-      ` : ''}
-      <div class="image-hero" data-img-index="${heroIdx}">
-        <img src="${visible[0].url}" alt="${escapeHtml(visible[0].category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
-        <div class="image-hero-caption">${escapeHtml(visible[0].category)}</div>
+      <div class="image-sort-bar">
+        <button type="button" class="image-sort-btn ${sortMode === 'angle' ? 'active' : ''}" data-mode="angle">By angle</button>
+        <button type="button" class="image-sort-btn ${sortMode === 'all' ? 'active' : ''}" data-mode="all">All photos</button>
+        <button type="button" class="image-sort-btn" disabled title="Requires Specimen_ID on images (coming soon)">By specimen</button>
+        <span class="image-total-count">${lightboxImages.length} images</span>
       </div>
-      ${visible.length > 1 ? `
-        <div class="image-thumbstrip">
-          ${visible.map((img) => {
-            const globalIdx = lightboxImages.indexOf(img);
-            return `
-              <div class="image-thumb ${globalIdx === heroIdx ? 'is-active' : ''}" data-img-index="${globalIdx}">
-                <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+      <div class="image-card-grid">
+        ${angleGroupNames.map((groupName) => {
+          const imgs = angleGroups[groupName];
+          const heroImg = imgs[0];
+          return `
+            <div class="image-card" data-group="${escapeHtml(groupName)}">
+              <div class="image-card-thumb">
+                <img src="${heroImg.url}" alt="${escapeHtml(groupName)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
               </div>
-            `;
-          }).join('')}
-        </div>
-      ` : ''}
+              <div class="image-card-info">
+                <span class="image-card-name">${escapeHtml(groupName)}</span>
+                <span class="image-card-count">${imgs.length}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
     `;
-
-    // Angle filter dropdown
-    const select = container.querySelector('#hero-angle-select');
-    if (select) {
-      select.addEventListener('change', () => {
-        if (select.value) { selectedAngles.add(select.value); render(); }
-      });
-    }
-
-    // Angle chips
-    const chipsEl = container.querySelector('#hero-angle-chips');
-    if (chipsEl && selectedAngles.size > 0) {
-      chipsEl.innerHTML = [...selectedAngles].map((a) => `
-        <span class="chip">${escapeHtml(a)}<button type="button" class="chip-x" data-angle="${escapeHtml(a)}">x</button></span>
-      `).join('');
-      chipsEl.querySelectorAll('.chip-x').forEach((btn) => {
-        btn.addEventListener('click', () => { selectedAngles.delete(btn.dataset.angle); render(); });
-      });
-    }
-
-    // Thumb click to swap hero
-    container.querySelectorAll('.image-thumb').forEach((thumb) => {
-      thumb.addEventListener('click', () => {
-        const idx = parseInt(thumb.dataset.imgIndex, 10);
-        const hero = container.querySelector('.image-hero');
-        const heroImg = hero.querySelector('img');
-        const heroCaption = hero.querySelector('.image-hero-caption');
-        hero.dataset.imgIndex = idx;
-        heroImg.src = lightboxImages[idx].url;
-        heroCaption.textContent = lightboxImages[idx].category;
-        container.querySelectorAll('.image-thumb').forEach((t) => t.classList.remove('is-active'));
-        thumb.classList.add('is-active');
+ 
+    // Sort toggle
+    container.querySelectorAll('.image-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        sortMode = btn.dataset.mode;
+        render();
       });
     });
-
-    // Hero click to open lightbox
-    container.querySelector('.image-hero')?.addEventListener('click', () => {
-      const idx = parseInt(container.querySelector('.image-hero').dataset.imgIndex, 10);
-      openLightbox(idx);
+ 
+    // Card click opens enlarged group
+    container.querySelectorAll('.image-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const groupName = card.dataset.group;
+        showEnlargedGroup(groupName, angleGroups[groupName]);
+      });
     });
   }
-
-  render();
-
-  container.querySelectorAll('.image-thumb').forEach((thumb) => {
-    thumb.addEventListener('click', () => {
-      const idx = parseInt(thumb.dataset.imgIndex, 10);
-      const hero = container.querySelector('.image-hero');
-      const heroImg = hero.querySelector('img');
-      const heroCaption = hero.querySelector('.image-hero-caption');
-      hero.dataset.imgIndex = idx;
-      heroImg.src = lightboxImages[idx].url;
-      heroCaption.textContent = lightboxImages[idx].category;
-      container.querySelectorAll('.image-thumb').forEach((t) => t.classList.remove('is-active'));
-      thumb.classList.add('is-active');
+ 
+  function renderAllGrid(cont) {
+    cont.innerHTML = `
+      <div class="image-sort-bar">
+        <button type="button" class="image-sort-btn ${sortMode === 'angle' ? 'active' : ''}" data-mode="angle">By angle</button>
+        <button type="button" class="image-sort-btn ${sortMode === 'all' ? 'active' : ''}" data-mode="all">All photos</button>
+        <button type="button" class="image-sort-btn" disabled title="Requires Specimen_ID on images (coming soon)">By specimen</button>
+        <span class="image-total-count">${lightboxImages.length} images</span>
+      </div>
+      <div class="image-all-grid">
+        ${lightboxImages.map((img, idx) => `
+          <div class="image-all-tile" data-img-index="${idx}">
+            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+          </div>
+        `).join('')}
+      </div>
+    `;
+ 
+    cont.querySelectorAll('.image-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        sortMode = btn.dataset.mode;
+        render();
+      });
     });
-  });
+ 
+    cont.querySelectorAll('.image-all-tile').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        openLightbox(parseInt(tile.dataset.imgIndex, 10));
+      });
+    });
+  }
+ 
+  render();
+}
 
-  container.querySelector('.image-hero').addEventListener('click', () => {
-    const idx = parseInt(container.querySelector('.image-hero').dataset.imgIndex, 10);
-    openLightbox(idx);
+
+// ============================================================
+// Enlarged group overlay - fullscreen grid for one category
+// ============================================================
+ 
+function showEnlargedGroup(groupName, imgs) {
+  const overlay = document.createElement('div');
+  overlay.className = 'enlarged-group-overlay';
+  overlay.innerHTML = `
+    <div class="enlarged-group-content">
+      <div class="enlarged-group-header">
+        <h3>${escapeHtml(groupName)} <span class="enlarged-group-count">${imgs.length} images</span></h3>
+        <button type="button" class="enlarged-group-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="enlarged-group-grid">
+        ${imgs.map((img) => `
+          <div class="enlarged-group-tile" data-img-index="${img.globalIndex}">
+            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+ 
+  overlay.querySelector('.enlarged-group-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
   });
+ 
+  const scopedList = imgs.map((img) => lightboxImages[img.globalIndex]);
+    overlay.querySelectorAll('.enlarged-group-tile').forEach((tile, i) => {
+      tile.addEventListener('click', () => {
+        openLightbox(i, scopedList);
+      });
+    });
+ 
+  document.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Escape') {
+      overlay.remove();
+      document.removeEventListener('keydown', handler);
+    }
+  });
+ 
+  document.body.appendChild(overlay);
 }
 
 function renderImagesGrouped(container) {
@@ -403,9 +460,16 @@ function renderImagesGrouped(container) {
   render();
 }
 
-function openLightbox(index) {
-  if (!lightboxImages.length) return;
-  lightboxIndex = index;
+let lightboxScope = null;
+
+function openLightbox(index, scopedImages) {
+  if (scopedImages) {
+    lightboxScope = scopedImages;
+    lightboxIndex = index;
+  } else {
+    lightboxScope = null;
+    lightboxIndex = index;
+  }
   renderLightbox();
 }
 
@@ -416,16 +480,17 @@ function closeLightbox() {
 
 function renderLightbox() {
   closeLightbox();
-  const img = lightboxImages[lightboxIndex];
+  const images = lightboxScope || lightboxImages;
+  const img = images[lightboxIndex];
   if (!img) return;
 
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
   overlay.innerHTML = `
     <div class="lightbox-content">
-      <div class="lightbox-counter">${lightboxIndex + 1} / ${lightboxImages.length}</div>
+      <div class="lightbox-counter">${lightboxIndex + 1} / ${images.length}</div>
       <button class="lightbox-close" aria-label="Close">x</button>
-      ${lightboxImages.length > 1 ? `
+      ${images.length > 1 ? `
         <button class="lightbox-nav lightbox-prev" aria-label="Previous"><</button>
         <button class="lightbox-nav lightbox-next" aria-label="Next">></button>
       ` : ''}
@@ -455,14 +520,14 @@ function renderLightbox() {
   if (prevBtn) {
     prevBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+      lightboxIndex = (lightboxIndex - 1 + images.length) % images.length;
       renderLightbox();
     });
   }
   if (nextBtn) {
     nextBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+      lightboxIndex = (lightboxIndex + 1) % images.length;
       renderLightbox();
     });
   }
@@ -526,11 +591,15 @@ function renderLightbox() {
 document.addEventListener('keydown', (e) => {
   if (!document.querySelector('.lightbox-overlay')) return;
   if (e.key === 'Escape') closeLightbox();
-  else if (e.key === 'ArrowLeft' && lightboxImages.length > 1) {
-    lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+  else if (e.key === 'ArrowLeft') {
+    const images = lightboxScope || lightboxImages;
+    if (images.length <= 1) return;
+    lightboxIndex = (lightboxIndex - 1 + images.length) % images.length;
     renderLightbox();
-  } else if (e.key === 'ArrowRight' && lightboxImages.length > 1) {
-    lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+  } else if (e.key === 'ArrowRight') {
+    const images = lightboxScope || lightboxImages;
+    if (images.length <= 1) return;
+    lightboxIndex = (lightboxIndex + 1) % images.length;
     renderLightbox();
   }
 });
@@ -701,13 +770,15 @@ function renderSpecimens(s) {
     ${pageItems.map((sp) => {
       const loc = sp.locality_with_date || 'Unknown locality';
       const museum = sp.stored || '';
-      const hasCoords = currentSpeciesData?.geolib?.some((g) => {
+      const matchingGeolib = currentSpeciesData?.geolib?.find((g) => {
         const coords = (g.coordinates || '').trim();
         const locality = g.locality || '';
         return coords && loc.includes(locality);
       });
+      const hasCoords = !!matchingGeolib;
+      const coordsParam = matchingGeolib ? `&coords=${encodeURIComponent(matchingGeolib.coordinates)}` : '';
       return `
-        <div class="specimen-row ${hasCoords ? '' : 'no-coords-row'}" data-href="./specimen.html?id=${encodeURIComponent(sp.id)}">
+        <div class="specimen-row ${hasCoords ? '' : 'no-coords-row'}" data-href="./specimen.html?id=${encodeURIComponent(sp.id)}${coordsParam}">
           <div class="specimen-row-left">
             <div class="specimen-row-main">${escapeHtml(loc)}${hasCoords ? '' : ' <span class="no-coords-badge">No coords</span>'}</div>
             ${museum ? `<div class="specimen-row-sub">${escapeHtml(museum)}</div>` : ''}
@@ -925,6 +996,20 @@ function renderHosts(s) {
   container.style.display = '';
   const grid = container.querySelector('.info-grid');
   if (!grid) return;
+
+  const title = container.querySelector('.panel-title');
+  if (title && !title.dataset.collapsible) {
+    title.dataset.collapsible = 'true';
+    title.style.cursor = 'pointer';
+    title.style.userSelect = 'none';
+    title.innerHTML += ' <span class="collapse-arrow" style="font-size:12px; margin-left:6px;">&#9662;</span>';
+    title.addEventListener('click', () => {
+      const isHidden = grid.style.display === 'none';
+      grid.style.display = isHidden ? '' : 'none';
+      title.querySelector('.collapse-arrow').innerHTML = isHidden ? '&#9662;' : '&#9656;';
+    });
+  }
+
   grid.innerHTML = s.hosts.map((h) => `
     <div class="info-item">
       <div class="info-label">${escapeHtml(h.tribe || 'Host Plant')}</div>

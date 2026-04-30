@@ -5,6 +5,7 @@
 import {
   searchSpecies,
   getLocality,
+  getMapPoints,
   TRIBES,
 } from '../shared/bruchindb-api.js';
 
@@ -275,8 +276,7 @@ function renderSuggestions(query) {
         return wildcardMatch(s.Full_name, q) || wildcardMatch(s.Genus, q);
       }
       const lower = q.toLowerCase();
-      const words = s.Full_name.toLowerCase().split(/\s+/);
-      return words.some((w) => w.startsWith(lower)) || s.Genus.toLowerCase().startsWith(lower);
+      return s.Full_name.toLowerCase().includes(lower) || s.Genus.toLowerCase().startsWith(lower);
     })
     .sort((a, b) => a.Full_name.localeCompare(b.Full_name))
     .slice(0, 50);
@@ -364,24 +364,47 @@ populateDropdown(tribeSelect, TRIBES, 'Any tribe');
 
 async function updateBanner() {
   if (!filterBanner) return;
-
+ 
+  let iconSvg = '';
+  let title = '';
+  let subtitle = '';
+ 
   if (initialFilters.localityIds && initialFilters.localityIds.length === 1) {
     const loc = await getLocality(initialFilters.localityIds[0]);
+    console.log('DEBUG getLocality result:', loc, 'for id:', initialFilters.localityIds[0]);
     if (loc) {
-      bannerText = `Showing species at ${loc.locality_name}, ${loc.country}${loc.province ? ', ' + loc.province : ''}.`;
+      const locationParts = [loc.province, loc.country].filter(Boolean);
+      iconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+      title = 'Filtered by locality';
+      subtitle = loc.locality
+        ? `${loc.locality}${locationParts.length ? ', ' + locationParts.join(', ') : ''}`
+        : locationParts.join(', ') || 'Unknown location';
+      // Store species for filtering - already normalized by getLocality()
+      initialFilters.localitySpecies = loc.species || [];
+      console.log('DEBUG locality:', loc.locality, 'species:', JSON.stringify(loc.species));
     }
   }
-
-  if (bannerText) {
+ 
+  if (initialFilters.bounds) {
+    iconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="4 3"/></svg>';
+    title = 'Filtered by map area';
+    subtitle = 'Showing species inside the selected bounding box';
+  }
+ 
+  if (title) {
     filterBanner.innerHTML = `
-      <span>${bannerText}</span>
-      <button type="button" id="clearBannerBtn">Clear filter ×</button>
+      <div class="banner-icon">${iconSvg}</div>
+      <div class="banner-text">
+        <span class="banner-title">${escapeHtml(title)}</span>
+        <span class="banner-subtitle">${escapeHtml(subtitle)}</span>
+      </div>
+      <button type="button" id="clearBannerBtn">Clear</button>
     `;
     filterBanner.style.display = 'flex';
     document.getElementById('clearBannerBtn').addEventListener('click', () => {
       delete initialFilters.localityIds;
+      delete initialFilters.localitySpecies;
       delete initialFilters.bounds;
-      bannerText = '';
       filterBanner.style.display = 'none';
       filterBanner.innerHTML = '';
       window.history.replaceState({}, '', window.location.pathname);
@@ -535,7 +558,8 @@ function renderCards(species) {
         <span class="learn-more">Learn More →</span>      </div>
       <img
         class="species-img"
-        src="./seed_beetle_logo_transparent.png"
+        src="${(() => { try { const t = JSON.parse(localStorage.getItem('speciesThumbs') || '{}'); return t[s.Species_ID] || './seed_beetle_logo_transparent.png'; } catch(e) { return './seed_beetle_logo_transparent.png'; } })()}"
+        onerror="this.src='./seed_beetle_logo_transparent.png'"
         alt="${escapeHtml(s.Full_name)}"
       />
     </a>
@@ -604,8 +628,38 @@ async function runSearch(useCache = false) {
 
   renderLoading();
   try {
-    const results = await searchSpecies(filters);
+    let results;
+    if (filters.speciesIds && filters.speciesIds.length > 0 && filters.scientificName) {
+      // Both chips and text: run two searches, merge
+      const chipResults = await searchSpecies({ ...filters, scientificName: '' });
+      const textResults = await searchSpecies({ ...filters, speciesIds: null });
+      const seen = new Set();
+      results = [];
+      for (const r of [...chipResults, ...textResults]) {
+        if (!seen.has(r.Species_ID)) {
+          seen.add(r.Species_ID);
+          results.push(r);
+        }
+      }
+    } else {
+      results = await searchSpecies(filters);
+    }
     lastResults = results;
+    // Client-side name filter for single-word searches
+    const sciName = filters.scientificName?.trim().toLowerCase();
+    if (sciName && !sciName.includes(' ')) {
+      if (sciName.includes('*') || sciName.includes('?')) {
+        const regex = new RegExp('^' + sciName.replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i');
+        lastResults = lastResults.filter((s) =>
+          regex.test(s.Genus) || regex.test(s.Species) || regex.test(s.Full_name)
+        );
+      } else {
+        lastResults = lastResults.filter((s) =>
+          s.Genus.toLowerCase().includes(sciName) ||
+          s.Species.toLowerCase().includes(sciName)
+        );
+      }
+    }
     // Client-side host filter
     if (selectedHosts.size > 0) {
       const hostSpeciesIds = new Set(
@@ -619,13 +673,22 @@ async function runSearch(useCache = false) {
     applySortToResults();
 
     // Cache results
-    sessionStorage.setItem('search:' + cacheKey, JSON.stringify({
-      results,
-      page: 1,
-    }));
+    try {
+      sessionStorage.setItem('search:' + cacheKey, JSON.stringify({
+        results,
+        page: 1,
+      }));
+    } catch (e) {
+      // Storage full, clear old search caches
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith('search:') || key.startsWith('species:')) {
+          sessionStorage.removeItem(key);
+        }
+      }
+    }
 
     if (resultsCount) {
-      resultsCount.textContent = `${results.length} result${results.length === 1 ? '' : 's'}`;
+      resultsCount.textContent = `${lastResults.length} result${lastResults.length === 1 ? '' : 's'}`;
     }
     renderPage();
   } catch (err) {
@@ -738,7 +801,17 @@ document.querySelector('.filter-panel')?.addEventListener('keydown', (e) => {
     e.preventDefault();
     // If typing in the scientific name box, use it as a text filter
     if (e.target === sciNameInput && sciNameInput.value.trim()) {
-      sciNameSuggestions.innerHTML = '';
+      const val = sciNameInput.value.trim();
+      if (val.includes('*') || val.includes('?')) {
+        // Wildcard search: run as text filter, don't select suggestion
+        sciNameSuggestions.innerHTML = '';
+      } else {
+        const topSuggestion = sciNameSuggestions.querySelector('.suggestion-item');
+        if (topSuggestion) {
+          topSuggestion.click();
+          return;
+        }
+      }
     }
     currentPage = 1;
     runSearch();
@@ -790,7 +863,7 @@ if (sortSelect) {
 
 // Restore state from URL, then run search
 filtersFromUrl();
-updateBanner();
+await updateBanner();
 const hasUrlFilters = window.location.search.length > 0;
 runSearch(!hasUrlFilters);
 
@@ -1004,7 +1077,7 @@ if (sciNameInput) {
   sciNameInput.addEventListener('input', (e) => renderSuggestions(e.target.value));
   sciNameInput.addEventListener('focus', () => renderSuggestions(sciNameInput.value));
   sciNameInput.addEventListener('blur', () => {
-    setTimeout(() => { sciNameSuggestions.innerHTML = ''; }, 100);
+    setTimeout(() => { sciNameSuggestions.innerHTML = ''; }, 300);
   });
 }
 
