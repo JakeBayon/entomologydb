@@ -276,6 +276,7 @@ h1{
   height:auto;
   object-fit:contain;
   display:block;
+  transform:translateY(6px);
 }
 
 .hero-copy{
