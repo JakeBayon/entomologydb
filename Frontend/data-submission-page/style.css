@@ -97,7 +97,14 @@ body{
 
 /* INTRO */
 .intro{
-  padding:72px 0 0 110px;
+  padding:72px 110px 0 110px;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) minmax(320px, 460px);
+  align-items:center;
+  gap:80px;
+}
+
+.intro-copy{
   max-width:920px;
 }
 
@@ -105,7 +112,7 @@ h1{
   margin:0 0 22px 0;
   font-size:72px;
   font-weight:900;
-  letter-spacing:-1px;
+  letter-spacing:0;
 }
 
 .intro-text{
@@ -114,6 +121,14 @@ h1{
   line-height:1.55;
   color:var(--muted);
   max-width:1000px;
+}
+
+.intro-image{
+  width:100%;
+  max-width:460px;
+  height:auto;
+  display:block;
+  justify-self:end;
 }
 
 /* BLUE SECTION */
@@ -413,6 +428,13 @@ h1{
 
   .intro{
     padding:54px 18px 0 18px;
+    grid-template-columns:1fr;
+    gap:34px;
+  }
+
+  .intro-image{
+    width:min(100%, 420px);
+    justify-self:center;
   }
 
   .blue-inner{
