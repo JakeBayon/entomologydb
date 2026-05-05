@@ -141,6 +141,7 @@ h1{
   gap:22px;
   padding:28px 0;
   overflow:hidden;
+  opacity:0.82;
   z-index:0;
 }
 
@@ -214,23 +215,6 @@ h1{
 @keyframes mosaicScrollRight{
   0%   { transform:translateX(-50%); }
   100% { transform:translateX(0); }
-}
-
-/* SOFT WHITE WASH OVER IMAGES */
-.welcome-overlay{
-  position:absolute;
-  inset:0;
-  z-index:1;
-  background:
-    linear-gradient(
-      to bottom,
-      rgba(255,255,255,0.06) 0%,
-      rgba(255,255,255,0.14) 18%,
-      rgba(255,255,255,0.28) 42%,
-      rgba(255,255,255,0.38) 58%,
-      rgba(255,255,255,0.56) 100%
-    );
-  pointer-events:none;
 }
 
 /* HERO */

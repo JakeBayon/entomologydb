@@ -118,15 +118,128 @@ h1{
 
 /* BLUE SECTION */
 .blue-section{
+  position:relative;
   margin-top:70px;
   background:var(--section);
-  padding:64px 0 86px 0;
+  padding:48px 0 86px 0;
+  overflow:hidden;
 }
 
 .blue-inner{
+  position:relative;
+  z-index:1;
   padding-left:110px;
   padding-right:110px;
   max-width:1280px;
+}
+
+/* DECORATIVE CIRCLES */
+.submission-nature{
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  width:38%;
+  min-width:420px;
+  pointer-events:none;
+  overflow:hidden;
+  z-index:0;
+}
+
+.pulse-circle{
+  position:absolute;
+  border-radius:50%;
+  background:rgba(202,232,177,0.36);
+  box-shadow:0 0 0 1px rgba(255,255,255,0.08), 0 22px 60px rgba(38,75,48,0.08);
+  animation:pulseCircle 6.5s ease-in-out infinite;
+}
+
+.circle-one{
+  width:330px;
+  height:330px;
+  top:70px;
+  right:-86px;
+}
+
+.circle-two{
+  width:250px;
+  height:250px;
+  top:360px;
+  right:90px;
+  background:rgba(190,225,160,0.42);
+  animation-delay:-1.8s;
+}
+
+.circle-three{
+  width:390px;
+  height:390px;
+  top:650px;
+  right:-150px;
+  background:rgba(213,239,190,0.32);
+  animation-delay:-3.4s;
+}
+
+.circle-four{
+  width:210px;
+  height:210px;
+  top:1020px;
+  right:130px;
+  background:rgba(197,229,170,0.38);
+  animation-delay:-4.8s;
+}
+
+.circle-five{
+  width:340px;
+  height:340px;
+  top:1280px;
+  right:-118px;
+  background:rgba(203,235,181,0.34);
+  animation-delay:-2.6s;
+}
+
+.circle-six{
+  width:230px;
+  height:230px;
+  top:1590px;
+  right:82px;
+  background:rgba(187,222,158,0.4);
+  animation-delay:-5.6s;
+}
+
+.circle-seven{
+  width:370px;
+  height:370px;
+  top:1840px;
+  right:-148px;
+  background:rgba(214,240,193,0.32);
+  animation-delay:-1.2s;
+}
+
+.circle-eight{
+  width:260px;
+  height:260px;
+  top:2220px;
+  right:112px;
+  background:rgba(196,229,169,0.36);
+  animation-delay:-6.2s;
+}
+
+@keyframes pulseCircle{
+  0%, 100%{
+    transform:scale(0.96);
+    opacity:0.55;
+  }
+
+  50%{
+    transform:scale(1.08);
+    opacity:0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .pulse-circle{
+    animation:none;
+  }
 }
 
 .form-section{
@@ -158,6 +271,7 @@ h1{
 .dropzone{
   width:590px;
   max-width:calc(100% - 20px);
+  margin-top:14px;
   cursor:pointer;
   outline:none;
 }
@@ -420,6 +534,10 @@ h1{
 
   .blue-section h2{
     font-size:42px;
+  }
+
+  .submission-nature{
+    display:none;
   }
 
   .section-subtitle{
