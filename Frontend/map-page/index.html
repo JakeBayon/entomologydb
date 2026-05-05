@@ -21,7 +21,7 @@
       <nav class="nav" aria-label="Primary">
         <a class="nav-link" href="../search-page/index.html">Search</a>
         <a class="nav-link active" href="../map-page/index.html">Map</a>
-        <a class="nav-link" href="../loading-page/index.html">Learn</a>
+        <a class="nav-link" href="../loading-page/index.html">Play</a>
         <a class="nav-link" href="../data-submission-page/index.html">Submit Data</a>
         <a class="nav-link" href="../about-page/index.html">About</a>
       </nav>
@@ -100,6 +100,9 @@
     </aside>
 
     <main class="results-panel">
+      <button type="button" class="map-filters-btn" id="filtersToggleBtn">
+        Filters
+      </button>
       <div id="map"></div>
     </main>
 
@@ -115,6 +118,19 @@
         arrow.classList.toggle('rotate');
       });
     });
+
+    const filtersToggleBtn = document.getElementById('filtersToggleBtn');
+    const searchLayout = document.getElementById('searchLayout');
+    if (filtersToggleBtn && searchLayout) {
+      if (localStorage.getItem('mapFiltersCollapsed') === 'true') {
+        searchLayout.classList.add('filters-collapsed');
+      }
+      filtersToggleBtn.addEventListener('click', () => {
+        searchLayout.classList.toggle('filters-collapsed');
+        localStorage.setItem('mapFiltersCollapsed', searchLayout.classList.contains('filters-collapsed'));
+        window.setTimeout(() => window.map?.resize(), 180);
+      });
+    }
   </script>
 
   <script src="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js"></script>

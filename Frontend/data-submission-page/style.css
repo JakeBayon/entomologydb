@@ -97,7 +97,14 @@ body{
 
 /* INTRO */
 .intro{
-  padding:72px 0 0 110px;
+  padding:72px 110px 0 110px;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) minmax(320px, 460px);
+  align-items:center;
+  gap:80px;
+}
+
+.intro-copy{
   max-width:920px;
 }
 
@@ -105,7 +112,7 @@ h1{
   margin:0 0 22px 0;
   font-size:72px;
   font-weight:900;
-  letter-spacing:-1px;
+  letter-spacing:0;
 }
 
 .intro-text{
@@ -113,14 +120,22 @@ h1{
   font-size:22px;
   line-height:1.55;
   color:var(--muted);
-  max-width:820px;
+  max-width:1000px;
+}
+
+.intro-image{
+  width:100%;
+  max-width:460px;
+  height:auto;
+  display:block;
+  justify-self:end;
 }
 
 /* BLUE SECTION */
 .blue-section{
   margin-top:70px;
   background:var(--section);
-  padding:64px 0 86px 0;
+  padding:48px 0 86px 0;
 }
 
 .blue-inner{
@@ -138,6 +153,7 @@ h1{
 }
 
 .blue-section h2{
+
   margin:0;
   color:#fff;
   font-size:56px;
@@ -158,6 +174,7 @@ h1{
 .dropzone{
   width:590px;
   max-width:calc(100% - 20px);
+  margin-top:14px;
   cursor:pointer;
   outline:none;
 }
@@ -398,6 +415,48 @@ h1{
   color:#9b1c1c;
 }
 
+.celebration-piece{
+  position:fixed;
+  left:var(--start-x);
+  top:var(--start-y);
+  width:12px;
+  height:18px;
+  background:var(--confetti-color);
+  border-radius:2px;
+  pointer-events:none;
+  z-index:999;
+  transform:translate(-50%, -50%) rotate(var(--start-rotation));
+  animation:confettiBurst var(--burst-duration) cubic-bezier(0.12, 0.78, 0.24, 1) forwards;
+}
+
+.celebration-piece.logo-piece{
+  width:34px;
+  height:34px;
+  background:transparent;
+  border-radius:50%;
+  object-fit:contain;
+  filter:drop-shadow(0 4px 8px rgba(17,17,17,0.18));
+}
+
+@keyframes confettiBurst{
+  0%{
+    opacity:1;
+    transform:translate(-50%, -50%) rotate(var(--start-rotation)) scale(0.75);
+  }
+
+  78%{
+    opacity:1;
+  }
+
+  100%{
+    opacity:0;
+    transform:
+      translate(calc(-50% + var(--travel-x)), calc(-50% + var(--travel-y)))
+      rotate(var(--end-rotation))
+      scale(var(--end-scale));
+  }
+}
+
 .hidden{
   display:none;
 }
@@ -411,6 +470,13 @@ h1{
 
   .intro{
     padding:54px 18px 0 18px;
+    grid-template-columns:1fr;
+    gap:34px;
+  }
+
+  .intro-image{
+    width:min(100%, 420px);
+    justify-self:center;
   }
 
   .blue-inner{

@@ -30,6 +30,60 @@ const PIN_IMAGE_ID = "bruchin-pin";
 const PANEL_WIDTH = 300;
 const DEFAULT_PADDING = 160;
 
+const mapSearchBtn = document.getElementById("mapSearchBtn");
+const mapResetBtn = document.getElementById("mapResetBtn");
+const mapSciNameInput = document.getElementById("map-sci-name-search");
+const mapTribeSelect = document.getElementById("map-filter-tribe");
+const mapCountryInput = document.getElementById("map-filter-country");
+const mapProvinceInput = document.getElementById("map-filter-province");
+const mapLocalityInput = document.getElementById("map-filter-locality");
+const mapElevationMinInput = document.getElementById("map-filter-elevation-min");
+const mapHostInput = document.getElementById("map-filter-host");
+const mapHostFamilySelect = document.getElementById("map-filter-host-family");
+const mapImagesOnlyCheckbox = document.getElementById("map-filter-images-only");
+
+function populateTribeFilter() {
+  if (!mapTribeSelect) return;
+  mapTribeSelect.innerHTML = '<option value="">Any tribe</option>';
+  TRIBES.forEach((tribe) => {
+    const option = document.createElement("option");
+    option.value = tribe;
+    option.textContent = tribe;
+    mapTribeSelect.appendChild(option);
+  });
+}
+
+function getMapFilters() {
+  return {
+    scientificName: mapSciNameInput?.value.trim() || "",
+    tribe: mapTribeSelect?.value || "",
+    country: mapCountryInput?.value.trim() || "",
+    province: mapProvinceInput?.value.trim() || "",
+    locality: mapLocalityInput?.value.trim() || "",
+    minElevation: mapElevationMinInput?.value || "",
+    host: mapHostInput?.value.trim() || "",
+    hostFamily: mapHostFamilySelect?.value || "",
+    imagesOnly: mapImagesOnlyCheckbox?.checked || false,
+  };
+}
+
+function resetMapFilters() {
+  [
+    mapSciNameInput,
+    mapCountryInput,
+    mapProvinceInput,
+    mapLocalityInput,
+    mapElevationMinInput,
+    mapHostInput,
+  ].forEach((input) => {
+    if (input) input.value = "";
+  });
+
+  if (mapTribeSelect) mapTribeSelect.value = "";
+  if (mapHostFamilySelect) mapHostFamilySelect.value = "";
+  if (mapImagesOnlyCheckbox) mapImagesOnlyCheckbox.checked = false;
+}
+
 
 // ============================================================
 // MAP SETUP
@@ -108,7 +162,7 @@ function updateLoadingState(message) {
 // ============================================================
 
 function fitBoundsWithPanel(bounds) {
-  const panelOpen = document.querySelector(".page-shell")?.classList.contains("panel-open");
+  const panelOpen = !document.getElementById("searchLayout")?.classList.contains("filters-collapsed");
   map.fitBounds(bounds, {
     padding: {
       top: DEFAULT_PADDING,
@@ -281,8 +335,9 @@ function renderPoints(points) {
         locality_name: p.locality_name,
         country: p.country,
         province: p.province || "",
+        latitude: p.latitude,
+        longitude: p.longitude,
         species_count: p.species_count,
-        // species is [{name, genus, species}, ...] - serialize for GeoJSON
         species_json: JSON.stringify(p.species || []),
       },
     })),
@@ -380,10 +435,19 @@ function renderPoints(points) {
   map.on("click", POINT_LAYER_ID, (e) => {
     const props = e.features[0].properties;
     const coords = e.features[0].geometry.coordinates.slice();
-    const rawSpecies = JSON.parse(props.species_json || "[]");
+    const point = allPoints.find(p => p.locality_id === props.locality_id);
+    const rawSpecies = point?.species || [];
     const localityName = props.locality_name || '';
     const country = props.country || '';
     const province = props.province || '';
+
+    const lat = Number(props.latitude);
+    const lng = Number(props.longitude);
+
+    const coordsText =
+      !isNaN(lat) && !isNaN(lng)
+        ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+        : '';
 
     const secondaryParts = [province, country].filter(Boolean);
 
@@ -400,40 +464,78 @@ function renderPoints(points) {
       return sp;
     });
 
+    const maxShow = 10;
+    const shown = species.slice(0, maxShow);
+
     let speciesHtml = '';
-    if (species.length > 0) {
-      const maxShow = 8;
-      const shown = species.slice(0, maxShow);
-      speciesHtml = '<div class="popup-species-list">' +
-        shown.map((sp) => {
-          const isUndetermined = sp.species === 'undetermined' || sp.species === 'sp' || !sp.species;
-          if (isUndetermined) {
-            return `<div class="popup-species-item popup-species-unid"><em>${escapeHtml(sp.name)}</em></div>`;
-          }
-          const searchQuery = `${sp.genus} ${sp.species}`.trim();
-          return `<a class="popup-species-item" href="../search-page/index.html?q=${encodeURIComponent(searchQuery)}&autoSearch=1"><em>${escapeHtml(sp.name)}</em></a>`;
-        }).join('') +
-        '</div>';
-      if (species.length > maxShow) {
-        speciesHtml += `<div class="popup-overflow">and ${species.length - maxShow} more</div>`;
-      }
+
+    if (shown.length > 0) {
+      speciesHtml = `
+        <div class="popup-species-list">
+          ${shown.map((sp) => {
+            const isUndetermined =
+              !sp.species ||
+              sp.species === 'undetermined' ||
+              sp.species === 'sp';
+
+            if (isUndetermined) {
+              return `
+                <div class="popup-species-item popup-species-unid">
+                  ${escapeHtml(sp.name)}
+                </div>
+              `;
+            }
+
+            const query = `${sp.genus} ${sp.species}`.trim();
+
+            return `
+              <a class="popup-species-item"
+                href="../search-page/index.html?q=${encodeURIComponent(query)}&autoSearch=1">
+                ${escapeHtml(sp.name)}
+              </a>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      speciesHtml = `<div class="popup-no-species">No species recorded</div>`;
     }
+
+    const moreHtml =
+      species.length > maxShow
+        ? `<div class="popup-more">+ ${species.length - maxShow} more</div>`
+        : '';
 
     const popupHtml = `
       <div class="locality-popup">
+
         <div class="popup-header">
           <div class="popup-title">${escapeHtml(localityName)}</div>
-          ${secondaryParts.length ? `<div class="popup-subtitle">${escapeHtml(secondaryParts.join(', '))}</div>` : ''}
+          ${
+            secondaryParts.length
+              ? `<div class="popup-subtitle">${escapeHtml(secondaryParts.join(', '))}</div>`
+              : ''
+          }
+          ${
+            coordsText
+              ? `<div class="popup-coords">${coordsText}</div>`
+              : ''
+          }
         </div>
+
         <div class="popup-body">
-          <div class="popup-count">${species.length} bruchid species</div>
+          <div class="popup-count">${species.length} species</div>
           ${speciesHtml}
+          ${moreHtml}
         </div>
+
         <div class="popup-footer">
-          <a class="popup-link" href="../search-page/index.html?countries=${encodeURIComponent(props.country)}&provinces=${encodeURIComponent(props.province)}&localities=${encodeURIComponent(props.locality_name)}">
-            View all in search <span class="popup-arrow">&rarr;</span>
+          <a class="popup-link"
+            href="../search-page/index.html?countries=${encodeURIComponent(props.country || '')}&provinces=${encodeURIComponent(props.province || '')}&localities=${encodeURIComponent(props.locality_name || '')}">
+            View in search →
           </a>
         </div>
+
       </div>
     `;
 
@@ -543,6 +645,11 @@ async function loadSpecimenPoints() {
 
 map.on("load", () => {
   ensureBboxLayers();
+  // force re-add if lost
+  if (!map.getSource("user-bbox")) {
+    ensureBboxLayers();
+  }
+  populateTribeFilter();
   loadSpecimenPoints();
 
   const navContainer = nav._container;
@@ -566,6 +673,29 @@ map.on("load", () => {
   ['countries-boundary', 'geolines'].forEach((layerId) => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
+});
+
+if (mapSearchBtn) {
+  mapSearchBtn.addEventListener("click", () => {
+    clearBbox();
+    loadSpecimenPoints(getMapFilters());
+  });
+}
+
+if (mapResetBtn) {
+  mapResetBtn.addEventListener("click", () => {
+    resetMapFilters();
+    clearBbox();
+    loadSpecimenPoints();
+  });
+}
+
+document.getElementById("filterPanel")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && event.target.tagName !== "BUTTON") {
+    event.preventDefault();
+    clearBbox();
+    loadSpecimenPoints(getMapFilters());
+  }
 });
 
 
@@ -604,7 +734,9 @@ map.on("click", (e) => {
   );
 
   renderPoints(filtered);
-  fitBoundsWithPanel([[west, south], [east, north]]);
+  setTimeout(() => {
+    fitBoundsWithPanel([[west, south], [east, north]]);
+    showBboxPrompt(currentBbox, filtered);
+  }, 50);
   setBboxMode(false);
-  showBboxPrompt(currentBbox, filtered);
 });

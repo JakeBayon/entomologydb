@@ -3,37 +3,71 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Loading | EntomologyDB</title>
+  <title>Play | BruchinDB</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../welcome-page/index.html">
+        <img src="../data-submission-page/icons/bruchindb-logo.png" alt="BruchinDB logo" class="brand-logo" />
+        <span class="brand-name">BruchinDB</span>
+      </a>
 
-  <main class="loading-wrap">
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="../search-page/index.html">Search</a>
+        <a class="nav-link" href="../map-page/index.html">Map</a>
+        <a class="nav-link active" href="../loading-page/index.html">Play</a>
+        <a class="nav-link" href="../data-submission-page/index.html">Submit Data</a>
+        <a class="nav-link" href="../about-page/index.html">About</a>
+      </nav>
+    </div>
+  </header>
 
-    <section class="loading-card">
+  <main class="loading-wrap" id="loading-wrap">
+    <section class="play-panel" id="loading-card">
+      <div class="play-copy">
+        <p class="play-kicker">BruchinDB Play</p>
+        <h1>Beetle Runner</h1>
+        <p class="play-intro">
+          Guide the seed beetle across the track, clear obstacles, and chase a new high score.
+        </p>
 
-      <!-- beetle image -->
-      <img
-        src="./icons/beetle.png"
-        alt="Seed beetle icon"
-        class="beetle-img"
-      />
+        <div class="play-actions">
+          <button class="play-btn" id="start-game-btn" type="button">Start Game</button>
+          <span class="key-hint">Space / ↑ to jump</span>
+        </div>
 
-      <!-- loading text -->
-      <div class="loading-text">
-        <span>LOADING</span>
-        <span id="dots">...</span>
+        <p class="fact">
+          <span class="fact-bold">Did you know?</span>
+          <span id="fact-text"></span>
+        </p>
       </div>
 
-      <!-- random fact -->
-      <p class="fact">
-        <span class="fact-bold">DID YOU KNOW?</span>
-        <span id="fact-text"></span>
-      </p>
-
+      <div class="play-visual" aria-hidden="true">
+        <span class="pulse-ring"></span>
+        <img src="./icons/beetle.png" alt="" class="beetle-img" />
+        <div class="loading-text">
+          <span>READY</span>
+          <span id="dots">...</span>
+        </div>
+      </div>
     </section>
+  </main>
 
+  <!-- game screen -->
+  <main class="game-wrap hidden" id="game-wrap">
+    <div class="game-header">
+      <span class="game-title">BEETLE RUNNER</span>
+      <span class="game-controls">space / ↑ = jump</span>
+    </div>
+
+    <canvas id="game-canvas" width="1000" height="320" aria-label="Beetle runner game"></canvas>
+
+    <p class="game-subtext" id="game-subtext">
+      jump over obstacles and survive as long as possible
+    </p>
   </main>
 
   <script>
@@ -47,39 +81,270 @@
       dots.textContent = frames[i];
     }, 500);
 
-
     /* seed beetle facts */
     const facts = [
-
       "Seed beetles lay their eggs directly on seeds, where larvae hatch and burrow inside.",
-
       "Most seed beetle larvae develop entirely inside a single seed.",
-
       "Seed beetles belong to the subfamily Bruchinae within the leaf beetle family.",
-
       "Many seed beetles specialize on only one plant species.",
-
       "The exposed rear end of seed beetles is called the pygidium.",
-
       "Seed beetles play an important role in studying evolution and host specialization.",
-
       "Some seed beetles can be agricultural pests, damaging stored legumes.",
-
       "Adult seed beetles often live only a few weeks.",
-
       "Seed beetles use chemical cues to locate suitable host plants.",
-
       "The shape and structure of the pygidium can help identify species."
-
     ];
 
-    /* choose random fact */
     const factText = document.getElementById("fact-text");
-
     const randomIndex = Math.floor(Math.random() * facts.length);
-
     factText.textContent = facts[randomIndex];
 
+    /* game setup */
+    const loadingWrap = document.getElementById("loading-wrap");
+    const gameWrap = document.getElementById("game-wrap");
+    const gameSubtext = document.getElementById("game-subtext");
+    const startGameBtn = document.getElementById("start-game-btn");
+
+    const canvas = document.getElementById("game-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const beetleSprite = new Image();
+    beetleSprite.src = "./icons/beetle.png";
+
+    let gameStarted = false;
+    let gameOver = false;
+    let animationId = null;
+    let score = 0;
+    let highScore = 0;
+    let speed = 6;
+    let obstacleTimer = 0;
+    let lastTime = 0;
+
+    const groundY = 250;
+    const gravity = 0.7;
+    const jumpPower = -13.5;
+
+    const beetle = {
+      x: 80,
+      y: groundY - 44,
+      width: 44,
+      height: 44,
+      velocityY: 0,
+      onGround: true
+    };
+
+    let obstacles = [];
+
+    function resizeCanvas() {
+      const maxWidth = Math.min(window.innerWidth - 40, 1000);
+      canvas.style.width = `${maxWidth}px`;
+      canvas.style.height = `${Math.round(maxWidth * 0.32)}px`;
+    }
+
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    function startGame() {
+      loadingWrap.classList.add("hidden");
+      gameWrap.classList.remove("hidden");
+      gameStarted = true;
+      resetGame();
+      loop(0);
+    }
+
+    startGameBtn.addEventListener("click", startGame);
+
+    function resetGame() {
+      cancelAnimationFrame(animationId);
+
+      gameOver = false;
+      score = 0;
+      speed = 6;
+      obstacleTimer = 0;
+      lastTime = 0;
+      obstacles = [];
+
+      beetle.y = groundY - beetle.height;
+      beetle.velocityY = 0;
+      beetle.onGround = true;
+
+      gameSubtext.textContent = "jump over obstacles and survive as long as possible";
+    }
+
+    function jump() {
+      if (beetle.onGround && !gameOver) {
+        beetle.velocityY = jumpPower;
+        beetle.onGround = false;
+      }
+    }
+
+    function spawnObstacle() {
+      const height = 26 + Math.random() * 30;
+      const width = 16 + Math.random() * 18;
+
+      obstacles.push({
+        x: canvas.width + 20,
+        y: groundY - height,
+        width,
+        height
+      });
+    }
+
+    function update(delta) {
+      if (gameOver) return;
+
+      beetle.velocityY += gravity;
+      beetle.y += beetle.velocityY;
+
+      if (beetle.y >= groundY - beetle.height) {
+        beetle.y = groundY - beetle.height;
+        beetle.velocityY = 0;
+        beetle.onGround = true;
+      }
+
+      obstacleTimer += delta;
+      const spawnRate = Math.max(700, 1300 - score * 2);
+
+      if (obstacleTimer > spawnRate) {
+        spawnObstacle();
+        obstacleTimer = 0;
+      }
+
+      for (let j = obstacles.length - 1; j >= 0; j--) {
+        obstacles[j].x -= speed;
+
+        if (obstacles[j].x + obstacles[j].width < 0) {
+          obstacles.splice(j, 1);
+          score += 1;
+          if (score > highScore) highScore = score;
+          if (score % 8 === 0) speed += 0.4;
+        }
+      }
+
+      for (const obstacle of obstacles) {
+        if (
+          beetle.x < obstacle.x + obstacle.width &&
+          beetle.x + beetle.width > obstacle.x &&
+          beetle.y < obstacle.y + obstacle.height &&
+          beetle.y + beetle.height > obstacle.y
+        ) {
+          gameOver = true;
+          gameSubtext.textContent = "game over — press space to restart";
+        }
+      }
+    }
+
+    function drawGround() {
+      ctx.strokeStyle = "#111111";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 1);
+      ctx.lineTo(canvas.width, groundY + 1);
+      ctx.stroke();
+
+      for (let x = 0; x < canvas.width; x += 34) {
+        ctx.fillStyle = "#bbbbbb";
+        ctx.fillRect(x, groundY + 10, 14, 2);
+      }
+    }
+
+    function drawBeetle() {
+      if (beetleSprite.complete) {
+        ctx.drawImage(beetleSprite, beetle.x, beetle.y, beetle.width, beetle.height);
+      } else {
+        ctx.fillStyle = "#7789AD";
+        ctx.beginPath();
+        ctx.ellipse(beetle.x + 22, beetle.y + 24, 18, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawObstacles() {
+      obstacles.forEach((obstacle) => {
+        ctx.fillStyle = "#111111";
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+        ctx.fillStyle = "#333333";
+        ctx.fillRect(obstacle.x + 4, obstacle.y + 6, 3, 3);
+      });
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "#111111";
+      ctx.font = "700 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(`score ${score}`, canvas.width - 24, 34);
+      ctx.fillText(`best ${highScore}`, canvas.width - 24, 60);
+    }
+
+    function drawStartOverlay() {
+      ctx.fillStyle = "#111111";
+      ctx.font = "700 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("press space to begin", canvas.width / 2, 120);
+    }
+
+    function drawGameOverOverlay() {
+      ctx.fillStyle = "#111111";
+      ctx.font = "700 26px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("GAME OVER", canvas.width / 2, 120);
+
+      ctx.font = "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+      ctx.fillText("press space to restart", canvas.width / 2, 148);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGround();
+      drawBeetle();
+      drawObstacles();
+      drawScore();
+
+      if (gameOver) {
+        drawGameOverOverlay();
+      }
+    }
+
+    function loop(timestamp) {
+      const delta = timestamp - lastTime;
+      lastTime = timestamp;
+
+      update(delta);
+      draw();
+
+      animationId = requestAnimationFrame(loop);
+    }
+
+    document.addEventListener("keydown", (event) => {
+      const key = event.code;
+
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(key)) {
+        event.preventDefault();
+      }
+
+      if (!gameStarted && key === "Space") {
+        startGame();
+        return;
+      }
+
+      if (!gameStarted) return;
+
+      if (gameOver && key === "Space") {
+        resetGame();
+        loop(0);
+        return;
+      }
+
+      if (key === "Space" || key === "ArrowUp") {
+        jump();
+      }
+
+      if (key === "ArrowDown" && !beetle.onGround) {
+        beetle.velocityY += 1.8;
+      }
+    });
   </script>
 
 </body>

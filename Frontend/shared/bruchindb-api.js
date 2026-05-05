@@ -1,6 +1,6 @@
 // BruchinDB API Client
 import { CONFIG as APP_CONFIG } from './config.js';
-// v2
+// v3
 let genusCacheByTribe = {};
 let allowedGeneraSet = null;
 
@@ -223,8 +223,6 @@ export async function searchSpecies(filters = {}) {
   if (speciesNameAllowlist) {
     mapped = mapped.filter((s) => {
       for (const fullName of speciesNameAllowlist) {
-        // Match if both genus and species epithet appear in the full name
-        // Handles subgenus notation like "Pachymerus (Butiobruchus) bridwelli"
         if (fullName.includes(s.Genus) && fullName.includes(s.Species)) return true;
       }
       return false;
@@ -449,13 +447,6 @@ async function fetchLocalitiesFromWorker() {
 /**
  * Get map points for the map page.
  * Fetches all bruchid localities (cached), then filters client-side.
- *
- * @param {Object} filters
- * @param {Object} filters.bounds - { west, south, east, north } bounding box
- * @param {string} filters.country - country name filter
- * @param {string} filters.tribe - tribe name filter (not yet functional without lean layouts)
- * @param {Function} onProgress - optional callback({ loaded, total, phase }) for loading UI
- * @returns {Promise<Array>} array of locality point objects
  */
 export async function getMapPoints(filters = {}, onProgress = null) {
   if (onProgress) onProgress({ phase: 'fetching', loaded: 0, total: 0 });
@@ -508,7 +499,6 @@ export async function getMapPoints(filters = {}, onProgress = null) {
 
 /**
  * Get distinct countries from cached localities (for map filter dropdowns).
- * Returns sorted array of country names.
  */
 export async function getLocalityCountries() {
   const data = await fetchLocalitiesFromWorker();

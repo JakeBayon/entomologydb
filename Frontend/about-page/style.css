@@ -85,13 +85,20 @@ body{
 /* PAGE CONTENT */
 .page{ min-height:calc(100vh - 76px); }
 
+.about-intro{
+  display:grid;
+  grid-template-columns:minmax(0, 900px) minmax(320px, 520px);
+  align-items:center;
+  gap:58px;
+  padding:72px 70px 0 110px;
+}
+
 .content{
-  padding:92px 0 0 110px;
-  max-width:900px;
+  max-width:920px;
 }
 
 h1{
-  margin:0 0 34px 0;
+  margin:0 0 22px 0;
   font-size:72px;
   font-weight:900;
   letter-spacing:-1px;
@@ -99,15 +106,112 @@ h1{
 
 .about-text{
   margin:0;
-  font-size:20px;
-  line-height:1.7;
+  font-size:22px;
+  line-height:1.55;
   color:var(--muted);
-  max-width:760px;
+  max-width:1000px;
 }
 
-@media (max-width:980px){
+.about-computer-drawing{
+  width:100%;
+  max-width:520px;
+  height:auto;
+  display:block;
+  justify-self:end;
+  transform:translateX(112px);
+}
+
+@media (max-width:1100px){
   .nav{ gap:26px; }
   .nav-link{ font-size:18px; }
   h1{ font-size:52px; }
-  .content{ padding:64px 18px 0 18px; }
+  .about-intro{
+    grid-template-columns:1fr;
+    gap:34px;
+    padding:54px 18px 0 18px;
+  }
+
+  .about-computer-drawing{
+    width:min(100%, 460px);
+    justify-self:center;
+    transform:none;
+  }
+}
+
+
+
+/* MOVING PHOTO DISPLAY */
+
+.about-photo-strip{
+  width:100%;
+  margin-top:72px;
+  padding:30px 0 42px 0;
+  overflow:hidden;
+}
+
+.photo-row{
+  width:100%;
+  overflow:hidden;
+}
+
+.photo-track{
+  display:flex;
+  align-items:center;
+  gap:24px;
+  width:max-content;
+  animation:aboutPhotoScroll 90s linear infinite;
+  will-change:transform;
+}
+
+.photo-track img{
+  flex:0 0 auto;
+  width:420px;
+  height:250px;
+  object-fit:cover;
+  border:3px solid rgba(255,255,255,0.95);
+  border-radius:6px;
+  background:#e8edf6;
+  box-shadow:0 10px 28px rgba(17,17,17,0.08);
+  filter:saturate(1.02) contrast(1.02);
+}
+
+.photo-track img:nth-child(3n){
+  width:280px;
+}
+
+.photo-track img:nth-child(4n){
+  width:500px;
+}
+
+@keyframes aboutPhotoScroll{
+  0%{
+    transform:translateX(0);
+  }
+
+  100%{
+    transform:translateX(-50%);
+  }
+}
+
+@media (max-width:980px){
+  .about-photo-strip{
+    margin-top:48px;
+  }
+
+  .photo-track{
+    gap:18px;
+  }
+
+  .photo-track img{
+    width:260px;
+    height:160px;
+  }
+
+  .photo-track img:nth-child(3n){
+    width:210px;
+  }
+
+  .photo-track img:nth-child(4n){
+    width:310px;
+  }
 }
