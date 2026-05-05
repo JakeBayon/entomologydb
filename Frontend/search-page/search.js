@@ -2,6 +2,8 @@
 // Hooks up the filter sidebar to the BruchinDB API and renders results.
 // Reads URL params (localityId, bounds) to apply filters from the map page.
 
+import { CONFIG } from '../shared/config.js';
+
 import {
   searchSpecies,
   getLocality,
@@ -558,7 +560,7 @@ function renderCards(species) {
         <span class="learn-more">Learn More →</span>      </div>
       <img
         class="species-img"
-        src="${(() => { try { const t = JSON.parse(localStorage.getItem('speciesThumbs') || '{}'); return t[s.Species_ID] || './seed_beetle_logo_transparent.png'; } catch(e) { return './seed_beetle_logo_transparent.png'; } })()}"
+        src="${CONFIG.fileMakerUrl}/photo/${encodeURIComponent(s.Species_ID)}"
         onerror="this.src='./seed_beetle_logo_transparent.png'"
         alt="${escapeHtml(s.Full_name)}"
       />

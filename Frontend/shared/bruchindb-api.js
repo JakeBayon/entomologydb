@@ -129,6 +129,29 @@ export async function searchSpecies(filters = {}) {
     }
   }
 
+  // Bounding box filter -- use cached localities to find species in the box
+  if (filters.bounds && !speciesNameAllowlist) {
+    try {
+      const locData = await fetchLocalitiesFromWorker();
+      const { west, south, east, north } = filters.bounds;
+      const inBox = (locData.localities || []).filter((p) =>
+        p.lat >= south && p.lat <= north &&
+        p.lng >= west && p.lng <= east
+      );
+      const names = new Set();
+      for (const loc of inBox) {
+        for (const sp of (loc.species || [])) {
+          const name = typeof sp === 'string' ? sp : sp.name;
+          if (name) names.add(name);
+        }
+      }
+      speciesNameAllowlist = names;
+      if (speciesNameAllowlist.size === 0) return [];
+    } catch (err) {
+      console.error('Bounding box locality lookup failed:', err);
+    }
+  }
+
   // Build the species query -- one OR per allowed genus
   let queries;
   if (filters.speciesIds && filters.speciesIds.length > 0) {
@@ -238,12 +261,7 @@ export async function getSpecies(speciesId) {
       copyright: img['Related_images::copyright'] || '',
       originalIndex: idx,
     }))
-    .filter((img) => {
-      if (!img.category) return true;
-      const type = img.category.split(':')[0].trim().toLowerCase();
-      if (type === 'illustration') return false;
-      return true;
-    });
+    ;
 
   const specimens = (portals.Specimens || []).map((s) => ({
     id: s['Specimens::Dynamic_ID'] || '',

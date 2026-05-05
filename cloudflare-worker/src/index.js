@@ -189,7 +189,7 @@ async function fetchAllLocalities(env) {
 // ============================================================
 
 async function getAllowedImageUrls(env, speciesId) {
-  const res = await fmFetch(env, 'Species', '/layouts/Species/_find', 'POST',
+  const res = await fmFetch(env, 'Species', '/layouts/Species_API/_find', 'POST',
     JSON.stringify({ query: [{ Species_ID: `==${speciesId}` }], limit: 1, 'limit.Related_images': 10000 })
   );
   if (!res.ok) return null;
@@ -201,7 +201,7 @@ async function getAllowedImageUrls(env, speciesId) {
   const genus = record.fieldData?.Genus;
   if (!genus) return null;
 
-  const genusRes = await fmFetch(env, 'Genus', '/layouts/Genus/_find', 'POST',
+  const genusRes = await fmFetch(env, 'Genus', '/layouts/Genus_API/_find', 'POST',
     JSON.stringify({
       query: ALLOWED_TRIBES.map((tribe) => ({
         Genus: `==${genus}`,
@@ -218,6 +218,35 @@ async function getAllowedImageUrls(env, speciesId) {
   return images
     .map((img) => img['Related_images::image_container'])
     .filter((url) => url && url.length > 0);
+}
+
+async function getFirstPhotoIndex(env, speciesId) {
+  const res = await fmFetch(env, 'Species', '/layouts/Species_API/_find', 'POST',
+    JSON.stringify({ query: [{ Species_ID: `==${speciesId}` }], limit: 1, 'limit.Related_images': 10000 })
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  const record = data?.response?.data?.[0];
+  if (!record) return null;
+  if (record.fieldData?.validity !== 'Valid name') return null;
+
+  const images = record.portalData?.Related_images || [];
+  let firstPhoto = null;
+  let firstDorsal = null;
+
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    const url = img['Related_images::image_container'] || '';
+    if (!url) continue;
+    const category = (img['Related_images::image_category'] || '').toLowerCase();
+    const custom2 = (img['Related_images::custom2'] || '').toLowerCase();
+    if (category.startsWith('illustration')) continue;
+    if (custom2.includes('published')) continue;
+    if (firstPhoto === null) firstPhoto = i;
+    if (firstDorsal === null && category.includes('dorsal')) firstDorsal = i;
+    if (firstDorsal !== null) break;
+  }
+  return firstDorsal !== null ? firstDorsal : firstPhoto;
 }
 
 async function getAllowedSpecimenImageUrls(env, specimenId) {
@@ -291,7 +320,36 @@ async function streamImage(imgUrl) {
 // ============================================================
 
 function stripSpeciesFields(responseText) {
-  return responseText;
+  try {
+    const data = JSON.parse(responseText);
+    if (!data?.response?.data) return responseText;
+
+    const keepFields = [
+      'Species_ID', 'Genus', 'Subgenus', 'Species', 'Subspecies',
+      'Author', 'Year', 'validity', 'Common', 'cs',
+    ];
+    const keepPortals = [
+      'Related_images', 'Specimens', 'Events', 'Geolib', 'Host species',
+    ];
+
+    data.response.data = data.response.data.map((record) => {
+      const slimFieldData = Object.fromEntries(
+        keepFields
+          .filter((k) => k in record.fieldData)
+          .map((k) => [k, record.fieldData[k]])
+      );
+      const slimPortalData = {};
+      for (const portal of keepPortals) {
+        if (record.portalData?.[portal]) {
+          slimPortalData[portal] = record.portalData[portal];
+        }
+      }
+      return { ...record, fieldData: slimFieldData, portalData: slimPortalData };
+    });
+    return JSON.stringify(data);
+  } catch {
+    return responseText;
+  }
 }
 
 function stripEventFields(responseText) {
@@ -478,6 +536,30 @@ export default {
         return resp;
       }
 
+      // ---- PHOTO PROXY (first non-illustration, non-published image) ----
+      if (pathParts.startsWith('photo/')) {
+        const cache = caches.default;
+        const cacheKey = new Request(url.toString() + '?_v=5', { method: 'GET' });
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) return cachedResponse;
+
+        const segments = pathParts.split('/');
+        const speciesId = segments[1];
+        if (!speciesId) return jsonResponse({ error: 'Missing species ID' }, 400);
+
+        const photoIndex = await getFirstPhotoIndex(env, speciesId);
+        if (photoIndex === null) return jsonResponse({ error: 'No photos available' }, 404);
+
+        const imageUrls = await getAllowedImageUrls(env, speciesId);
+        if (!imageUrls || !imageUrls[photoIndex]) return jsonResponse({ error: 'Image not found' }, 404);
+
+        const response = await streamImage(imageUrls[photoIndex]);
+        if (response.status === 200) {
+          ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        }
+        return response;
+      }
+
       // ---- IMAGE PROXY ----
       if (pathParts.startsWith('image/')) {
         // Check Cloudflare cache first
@@ -605,7 +687,7 @@ export default {
           query: [{ 'P::Tribe': tribe }],
           limit: 1000,
         });
-        const fmPath = '/layouts/Genus/_find';
+        const fmPath = '/layouts/Genus_API/_find';
         const res = await fmFetch(env, 'Genus', fmPath, 'POST', body);
         if (res.ok) {
           let responseText = await res.text();
@@ -632,7 +714,7 @@ export default {
     try {
       const allGenera = [];
       for (const tribe of ALLOWED_TRIBES) {
-        const res = await fmFetch(env, 'Genus', '/layouts/Genus/_find', 'POST',
+        const res = await fmFetch(env, 'Genus', '/layouts/Genus_API/_find', 'POST',
           JSON.stringify({ query: [{ 'P::Tribe': tribe }], limit: 1000 })
         );
         if (res.ok) {
@@ -647,11 +729,11 @@ export default {
         Validity: 'Valid name',
       }));
       const body = JSON.stringify({ query: queries, limit: 10000 });
-      const res = await fmFetch(env, 'Species', '/layouts/Lookup species/_find', 'POST', body);
+      const res = await fmFetch(env, 'Species', '/layouts/Search_API/_find', 'POST', body);
       if (res.ok) {
         let responseText = await res.text();
         responseText = stripSpeciesFields(responseText);
-        const fullUrl = workerUrl + '/Species/layouts/Lookup species/_find';
+        const fullUrl = workerUrl + '/Species/layouts/Search_API/_find';
         const cacheKey = await getCacheKey(fullUrl, body);
         const cachedResponse = new Response(responseText, {
           status: 200,
