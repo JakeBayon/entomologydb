@@ -118,6 +118,7 @@ h1{
   height:auto;
   display:block;
   justify-self:end;
+  transform:translateX(112px);
 }
 
 @media (max-width:1100px){
@@ -133,6 +134,7 @@ h1{
   .about-computer-drawing{
     width:min(100%, 460px);
     justify-self:center;
+    transform:none;
   }
 }
 
