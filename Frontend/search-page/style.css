@@ -2218,3 +2218,22 @@ main {
   color: #999;
   background: #f0f0f0;
 }
+.specimen-row-details {
+  font-size: 0.82rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+.image-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.image-toggle input {
+  margin: 0;
+}
