@@ -39,7 +39,7 @@ export function getTribes() {
 async function getGeneraForTribe(tribe) {
   if (genusCacheByTribe[tribe]) return genusCacheByTribe[tribe];
   try {
-    const data = await fmRequest('Genus', '/layouts/Genus/_find', {
+    const data = await fmRequest('Genus', '/layouts/Genus_API/_find', {
       method: 'POST',
       body: JSON.stringify({
         query: [{ 'P::Tribe': tribe }],
@@ -180,7 +180,7 @@ export async function searchSpecies(filters = {}) {
 
   if (queries.length === 0) return [];
 
-  const data = await fmRequest('Species', '/layouts/Lookup species/_find', {
+  const data = await fmRequest('Species', '/layouts/Search_API/_find', {
     method: 'POST',
     body: JSON.stringify({ query: queries, limit: 10000 }),
   });
@@ -195,15 +195,19 @@ export async function searchSpecies(filters = {}) {
       Subgenus: f.Subgenus || '',
       Species: f.Species,
       Subspecies: f.Subspecies || '',
-      Author: '',
-      Year: '',
+      Author: f.Author || '',
+      Year: f.Year || '',
       Tribe: f.Tribe || '',
-      Common: '',
+      Common: f.Common || '',
+      specimen_count: f.cs || 0,
       Full_name: `${f.Genus} ${f.Species}`.trim(),
       image_url: null,
       image_count: 0,
-      specimen_count: 0,
       locality_count: 0,
+      hosts: (record.portalData?.['Host species'] || []).map((h) => ({
+        name: (h['Host species::Full specific name'] || '').trim(),
+        tribe: (h['Host species::Tribe'] || '').trim(),
+      })),
     };
   });
 
@@ -232,7 +236,7 @@ export async function searchSpecies(filters = {}) {
 // SPECIES DETAIL
 // ============================================================
 export async function getSpecies(speciesId) {
-  const data = await fmRequest('Species', '/layouts/Species/_find', {
+  const data = await fmRequest('Species', '/layouts/Species_API/_find', {
     method: 'POST',
     body: JSON.stringify({
       query: [{ Species_ID: `==${speciesId}` }],
@@ -242,7 +246,6 @@ export async function getSpecies(speciesId) {
       'limit.Events': 10000,
       'limit.Geolib': 10000,
       'limit.Host species': 10000,
-      'limit.Host specimens': 10000,
     }),
   });
 
@@ -259,16 +262,26 @@ export async function getSpecies(speciesId) {
       caption: img['Related_images::full caption'] || '',
       source: img['Related_images::source'] || '',
       copyright: img['Related_images::copyright'] || '',
+      custom2: img['Related_images::custom2'] || '',
+      imageId: img['Related_images::Image_ID'] || '',
+      specimenId: img['Related_images::Specimen_ID'] || '',
       originalIndex: idx,
     }))
     ;
 
   const specimens = (portals.Specimens || []).map((s) => ({
     id: s['Specimens::Dynamic_ID'] || '',
+    specimen_id: s['Specimens::Specimen_ID'] || '',
     stage_lot: s['Specimens::stage_lot'] || '',
+    stage: s['Specimens::stage'] || '',
+    sex: s['Specimens::sex'] || '',
     stored: s['Specimens::stored'] || '',
     locality_with_date: s['Specimens::Locality_with_date'] || '',
+    locality: s['Specimens::locality'] || '',
     medium: s['Specimens::medium'] || '',
+    collecting_method: s['Specimens::collecting_method'] || '',
+    determined_by: s['Specimens::determined by'] || '',
+    event_id: s['Specimens::Event_ID'] || '',
   }));
 
   const geolibByLocality = {};
@@ -288,6 +301,10 @@ export async function getSpecies(speciesId) {
       elevation: e['Events::full_elevation'] || '',
       date: e['Events::full_date'] || '',
       collector: e['Events::collector'] || '',
+      habitat: e['Events::habitat'] || '',
+      incomp_date: e['Events::Incomp_date'] || '',
+      event_id: e['Events::Event_ID'] || '',
+      locality_id: e['Events::Locality_ID'] || '',
       coordinates: geolibByLocality[localityName] || '',
     };
   });
@@ -384,7 +401,7 @@ export async function getSpecimen(specimenId) {
 // All filtering (bounding box, country, tribe) is done client-side.
 // ============================================================
 
-const LOCALITY_STORAGE_KEY = 'bruchindb_localities_v2';
+const LOCALITY_STORAGE_KEY = 'bruchindb_localities_v3';
 
 async function fetchLocalitiesFromWorker() {
   // Check sessionStorage first

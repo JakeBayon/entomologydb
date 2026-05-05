@@ -2187,40 +2187,9 @@ main {
   letter-spacing: 0.03em;
 }
 
-.enlarged-group-loadmore {
-  text-align: center;
-  padding: 12px;
-}
-
-.load-more-btn {
-  padding: 10px 24px;
-  background: #333;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.load-more-btn:hover {
-  background: #555;
-}
-
-.image-card-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: 700;
-  color: #999;
-  background: #f0f0f0;
-}
 .specimen-row-details {
   font-size: 0.82rem;
-  color: #666;
+  color: var(--text-secondary, #666);
   margin-top: 2px;
 }
 
@@ -2229,7 +2198,7 @@ main {
   align-items: center;
   gap: 4px;
   font-size: 0.82rem;
-  color: #666;
+  color: var(--text-secondary, #666);
   cursor: pointer;
   white-space: nowrap;
 }

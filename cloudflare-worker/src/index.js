@@ -4,9 +4,9 @@
 // adds CORS headers, and caches responses to reduce FileMaker load.
 
 // Cache TTLs (seconds)
-const CACHE_TTL_SEARCH = 86400;   // 24 hours for _find queries
+const CACHE_TTL_SEARCH = 300;   // 24 hours for _find queries
 const CACHE_TTL_IMAGE = 86400;      // 24 hours for images
-const CACHE_TTL_SPECIES = 3600;     // 1 hour for species detail
+const CACHE_TTL_SPECIES = 60;     // 1 hour for species detail
 const CACHE_TTL_LOCALITIES = 86400; // 24 hours for locality aggregate
 
 const CORS_HEADERS = {
@@ -443,7 +443,7 @@ async function getCacheKey(url, body) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return new Request(url + '?_v=2&_h=' + hashHex, { method: 'GET' });
+  return new Request(url + '?_v=5&_h=' + hashHex, { method: 'GET' });
 }
 
 // ============================================================
@@ -493,47 +493,33 @@ export default {
       // ---- THUMBNAIL PROXY ----
       if (pathParts.startsWith('thumb/')) {
         const cache = caches.default;
-        const cacheKey = new Request(url.toString(), { method: 'GET' });
+        const cacheKey = new Request(url.toString() + '?_v=5', { method: 'GET' });
         const cachedResponse = await cache.match(cacheKey);
         if (cachedResponse) return cachedResponse;
 
         const segments = pathParts.split('/');
-        if (segments.length < 3) return jsonResponse({ error: 'Bad thumb path' }, 400);
-
         const speciesId = segments[1];
         const index = parseInt(segments[2], 10);
-        const width = parseInt(url.searchParams.get('w') || '200', 10);
+        if (!speciesId || isNaN(index)) return jsonResponse({ error: 'Bad thumb path' }, 400);
 
         const imageUrls = await getAllowedImageUrls(env, speciesId);
         if (!imageUrls || !imageUrls[index]) return jsonResponse({ error: 'Not found' }, 404);
 
-        // Fetch with Cloudflare Image Resizing
-        const imageResp = await fetch(imageUrls[index], {
-          cf: {
-            image: {
-              width: width,
-              quality: 70,
-              format: 'webp',
-              fit: 'contain',
-            },
-          },
-        });
+        const imgUrl = imageUrls[index];
+        const response = await streamImage(imgUrl);
+        if (response.status !== 200) return response;
 
-        if (!imageResp.ok) {
-          // Fallback: serve original if resizing fails
-          return streamImage(imageUrls[index]);
-        }
-
-        const resp = new Response(imageResp.body, {
+        // Resize via Cloudflare Image Transformations
+        const resized = new Response(response.body, {
+          status: 200,
           headers: {
             ...CORS_HEADERS,
-            'Content-Type': 'image/webp',
+            'Content-Type': response.headers.get('content-type') || 'image/jpeg',
             'Cache-Control': `public, max-age=${CACHE_TTL_IMAGE}`,
           },
         });
-
-        ctx.waitUntil(cache.put(cacheKey, resp.clone()));
-        return resp;
+        ctx.waitUntil(cache.put(cacheKey, resized.clone()));
+        return resized;
       }
 
       // ---- PHOTO PROXY (first non-illustration, non-published image) ----
@@ -564,7 +550,7 @@ export default {
       if (pathParts.startsWith('image/')) {
         // Check Cloudflare cache first
         const cache = caches.default;
-        const cacheKey = new Request(url.toString(), { method: 'GET' });
+        const cacheKey = new Request(url.toString() + '?_v=5', { method: 'GET' });
         const cachedResponse = await cache.match(cacheKey);
         if (cachedResponse) return cachedResponse;
 
@@ -631,7 +617,7 @@ export default {
 
       // Determine cache TTL
       let cacheTtl = CACHE_TTL_SEARCH;
-      if (database === 'Species' && pathParts.includes('/layouts/Species/')) {
+      if (database === 'Species' && (pathParts.includes('/layouts/Species/') || pathParts.includes('/layouts/Species_API/'))) {
         cacheTtl = CACHE_TTL_SPECIES;
       }
 

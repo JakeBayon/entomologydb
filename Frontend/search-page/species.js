@@ -81,7 +81,6 @@ async function loadSpecies() {
 
   titleEl.textContent = 'Loading...';
   subtitleEl.textContent = '';
-
   try {
     const species = await getSpecies(speciesId);
     if (!species) {
@@ -121,7 +120,16 @@ function renderSpecies(s) {
   const counts = [];
   if (s.specimens.length) counts.push(`${s.specimens.length} specimens`);
   if (s.events.length) counts.push(`${s.events.length} events`);
-  if (s.images.length) counts.push(`${s.images.length} images`);
+  const photoImages = s.images.filter((img) => {
+    const type = (img.category || '').split(':')[0].trim().toLowerCase();
+    return type !== 'illustration';
+  });
+  const illustImages = s.images.filter((img) => {
+    const type = (img.category || '').split(':')[0].trim().toLowerCase();
+    return type === 'illustration';
+  });
+  if (photoImages.length) counts.push(`${photoImages.length} photos`);
+  if (illustImages.length) counts.push(`${illustImages.length} illustrations`);
   subtitleEl.textContent = counts.join(' · ') || 'No records';
   const breadcrumbSpecies = document.getElementById('breadcrumb-species');
   if (breadcrumbSpecies) breadcrumbSpecies.textContent = s.Full_name;
@@ -173,59 +181,92 @@ let lightboxImages = [];
 let lightboxIndex = 0;
 let tabbedView = sessionStorage.getItem('speciesViewMode') === 'tabbed';
 
+let showIllustrations = false;
+
 function renderImages(s) {
   const container = document.querySelector('#images .image-grid');
   if (!container) return;
-  if (!s.images.length) {
-    container.innerHTML = `<div class="empty-state"><p>No images available yet</p><p class="empty-hint">Images will appear here once added to the database.</p></div>`;
-    lightboxImages = [];
-    return;
-  }
+
   const proxyBase = CONFIG.fileMakerUrl + '/image/' + encodeURIComponent(s.Species_ID);
-  lightboxImages = s.images
+
+  // Build full image list (all images, including illustrations)
+  const allRawImages = (s.images || [])
     .map((img) => ({
       url: `${proxyBase}/${img.originalIndex != null ? img.originalIndex : 0}`,
       category: img.category,
       caption: img.caption,
       source: img.source,
       copyright: img.copyright,
+      custom2: img.custom2 || '',
+      imageId: img.imageId || '',
+      specimenId: img.specimenId || '',
       hasFile: !!(img.url && img.url.length > 0),
+      isIllustration: img.category ? img.category.split(':')[0].trim().toLowerCase() === 'illustration' : false,
     }))
     .filter((img) => img.hasFile);
+
+  // Filter based on illustration toggle
+  // Always filter out published images
+  const nonPublished = allRawImages.filter((img) =>
+    !img.custom2.toLowerCase().includes('published')
+  );
+  lightboxImages = showIllustrations
+    ? nonPublished
+    : nonPublished.filter((img) => !img.isIllustration);
+
+  const illustrationCount = allRawImages.filter((img) => img.isIllustration).length;
+  const photoCount = allRawImages.length - illustrationCount;
+
+  if (!allRawImages.length) {
+    container.innerHTML = '<div class="empty-state"><p>No images available yet</p><p class="empty-hint">Images will appear here once added to the database.</p></div>';
+    lightboxImages = [];
+    return;
+  }
+
+  if (!lightboxImages.length && !showIllustrations) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>No photographs available</p>
+        <p class="empty-hint">${illustrationCount} illustration${illustrationCount !== 1 ? 's' : ''} available.
+          <a href="#" id="show-illust-link">Show illustrations</a>
+        </p>
+      </div>`;
+    container.querySelector('#show-illust-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      showIllustrations = true;
+      renderImages(currentSpeciesData);
+    });
+    return;
+  }
 
   if (tabbedView) {
     renderImagesGrouped(container);
   } else {
-    renderImagesHero(container);
+    renderImagesHero(container, illustrationCount);
   }
-  // Cache the first dorsal image URL for search page cards
+
+  // Cache dorsal thumbnail
   try {
-    const dorsalImg = lightboxImages.find((img) =>
-      img.category && img.category.toLowerCase().includes('dorsal')
-    );
-    if (dorsalImg) {
-      const thumbCache = JSON.parse(localStorage.getItem('speciesThumbs') || '{}');
-      thumbCache[s.Species_ID] = dorsalImg.url;
-      localStorage.setItem('speciesThumbs', JSON.stringify(thumbCache));
-    }
+    const thumbCache = JSON.parse(localStorage.getItem('speciesThumbs') || '{}');
+    thumbCache[s.Species_ID] = `${CONFIG.fileMakerUrl}/photo/${encodeURIComponent(s.Species_ID)}`;
+    localStorage.setItem('speciesThumbs', JSON.stringify(thumbCache));
   } catch (e) {}
 }
 
-function renderImagesHero(container) {
+
+function renderImagesHero(container, illustrationCount) {
   const getAngle = (category) => {
     const parts = category.split(':');
     return parts.length > 1 ? parts.slice(1).join(':').trim() : category.trim();
   };
- 
-  // Group images by angle/view
+
   const angleGroups = {};
   lightboxImages.forEach((img, idx) => {
     const group = getAngle(img.category);
     if (!angleGroups[group]) angleGroups[group] = [];
     angleGroups[group].push({ ...img, globalIndex: idx });
   });
- 
-  // Sort groups: dorsal first, then alphabetical
+
   const angleGroupNames = Object.keys(angleGroups).sort((a, b) => {
     const aIsDorsal = a.toLowerCase().includes('dorsal');
     const bIsDorsal = b.toLowerCase().includes('dorsal');
@@ -233,22 +274,49 @@ function renderImagesHero(container) {
     if (!aIsDorsal && bIsDorsal) return 1;
     return a.localeCompare(b);
   });
- 
-  let sortMode = 'angle'; // 'angle' or 'all'
- 
+
+  // Specimen groups
+  const specimenGroups = {};
+  lightboxImages.forEach((img, idx) => {
+    const key = img.specimenId || 'unlinked';
+    if (!specimenGroups[key]) specimenGroups[key] = [];
+    specimenGroups[key].push({ ...img, globalIndex: idx });
+  });
+
+  let sortMode = 'angle';
+
+  function getSortBar() {
+    return `
+      <div class="image-sort-bar">
+        <button type="button" class="image-sort-btn ${sortMode === 'angle' ? 'active' : ''}" data-mode="angle">By angle</button>
+        <button type="button" class="image-sort-btn ${sortMode === 'all' ? 'active' : ''}" data-mode="all">All photos</button>
+        <button type="button" class="image-sort-btn ${sortMode === 'specimen' ? 'active' : ''}" data-mode="specimen">By specimen</button>
+        <span class="image-total-count">${lightboxImages.length} photos</span>
+      </div>
+    `;
+  }
+
+  function bindSortBar(cont) {
+    cont.querySelectorAll('.image-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        sortMode = btn.dataset.mode;
+        render();
+      });
+    });
+  }
+
   function render() {
     if (sortMode === 'all') {
       renderAllGrid(container);
       return;
     }
- 
+    if (sortMode === 'specimen') {
+      renderSpecimenGrid(container);
+      return;
+    }
+
     container.innerHTML = `
-      <div class="image-sort-bar">
-        <button type="button" class="image-sort-btn ${sortMode === 'angle' ? 'active' : ''}" data-mode="angle">By angle</button>
-        <button type="button" class="image-sort-btn ${sortMode === 'all' ? 'active' : ''}" data-mode="all">All photos</button>
-        <button type="button" class="image-sort-btn" disabled title="Requires Specimen_ID on images (coming soon)">By specimen</button>
-        <span class="image-total-count">${lightboxImages.length} images</span>
-      </div>
+      ${getSortBar()}
       <div class="image-card-grid">
         ${angleGroupNames.map((groupName) => {
           const imgs = angleGroups[groupName];
@@ -256,7 +324,7 @@ function renderImagesHero(container) {
           return `
             <div class="image-card" data-group="${escapeHtml(groupName)}">
               <div class="image-card-thumb">
-                <img src="${heroImg.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(groupName)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+                <img src="${heroImg.url}" alt="${escapeHtml(groupName)}" loading="lazy" onerror="this.style.display='none'" />
               </div>
               <div class="image-card-info">
                 <span class="image-card-name">${escapeHtml(groupName)}</span>
@@ -267,16 +335,8 @@ function renderImagesHero(container) {
         }).join('')}
       </div>
     `;
- 
-    // Sort toggle
-    container.querySelectorAll('.image-sort-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        sortMode = btn.dataset.mode;
-        render();
-      });
-    });
- 
-    // Card click opens enlarged group
+
+    bindSortBar(container);
     container.querySelectorAll('.image-card').forEach((card) => {
       card.addEventListener('click', () => {
         const groupName = card.dataset.group;
@@ -284,58 +344,77 @@ function renderImagesHero(container) {
       });
     });
   }
- 
+
+  const IMAGES_PER_PAGE = 20;
+  let imagesShown = IMAGES_PER_PAGE;
+
   function renderAllGrid(cont) {
+    const visible = lightboxImages.slice(0, imagesShown);
+    const remaining = lightboxImages.length - imagesShown;
     cont.innerHTML = `
-      <div class="image-sort-bar">
-        <button type="button" class="image-sort-btn ${sortMode === 'angle' ? 'active' : ''}" data-mode="angle">By angle</button>
-        <button type="button" class="image-sort-btn ${sortMode === 'all' ? 'active' : ''}" data-mode="all">All photos</button>
-        <button type="button" class="image-sort-btn" disabled title="Requires Specimen_ID on images (coming soon)">By specimen</button>
-        <span class="image-total-count">${lightboxImages.length} images</span>
-      </div>
+      ${getSortBar()}
       <div class="image-all-grid">
-        ${lightboxImages.slice(0, 12).map((img, idx) => `
+        ${visible.map((img, idx) => `
           <div class="image-all-tile" data-img-index="${idx}">
-            <img src="${img.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.style.display='none'" />
           </div>
         `).join('')}
       </div>
-      ${lightboxImages.length > 12 ? `<div class="enlarged-group-loadmore"><button type="button" class="load-more-btn" id="loadMoreAll">Load ${lightboxImages.length - 12} more images</button></div>` : ''}
+      ${remaining > 0 ? `<button type="button" class="load-more-btn" id="load-more-images">Load ${Math.min(remaining, IMAGES_PER_PAGE)} more (${remaining} remaining)</button>` : ''}
     `;
- 
-    cont.querySelectorAll('.image-sort-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        sortMode = btn.dataset.mode;
-        render();
-      });
-    });
- 
+    bindSortBar(cont);
     cont.querySelectorAll('.image-all-tile').forEach((tile) => {
       tile.addEventListener('click', () => {
         openLightbox(parseInt(tile.dataset.imgIndex, 10));
       });
     });
-
-    const loadMoreAll = cont.querySelector('#loadMoreAll');
-    if (loadMoreAll) {
-      loadMoreAll.addEventListener('click', () => {
-        const grid = cont.querySelector('.image-all-grid');
-        const remaining = lightboxImages.slice(12);
-        grid.insertAdjacentHTML('beforeend', remaining.map((img, i) => `
-          <div class="image-all-tile" data-img-index="${12 + i}">
-            <img src="${img.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
-          </div>
-        `).join(''));
-        loadMoreAll.parentElement.remove();
-        grid.querySelectorAll('.image-all-tile').forEach((tile) => {
-          tile.addEventListener('click', () => {
-            openLightbox(parseInt(tile.dataset.imgIndex, 10));
-          });
-        });
+    const loadMoreBtn = cont.querySelector('#load-more-images');
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', () => {
+        imagesShown += IMAGES_PER_PAGE;
+        renderAllGrid(cont);
       });
     }
   }
- 
+
+  function renderSpecimenGrid(cont) {
+    const keys = Object.keys(specimenGroups).sort((a, b) => {
+      if (a === 'unlinked') return 1;
+      if (b === 'unlinked') return -1;
+      return a.localeCompare(b);
+    });
+
+    cont.innerHTML = `
+      ${getSortBar()}
+      <div class="image-card-grid">
+        ${keys.map((key) => {
+          const imgs = specimenGroups[key];
+          const heroImg = imgs[0];
+          const label = key === 'unlinked' ? 'No specimen linked' : key;
+          return `
+            <div class="image-card" data-group="${escapeHtml(key)}">
+              <div class="image-card-thumb">
+                <img src="${heroImg.url}" alt="${escapeHtml(label)}" loading="lazy" onerror="this.style.display='none'" />
+              </div>
+              <div class="image-card-info">
+                <span class="image-card-name">${escapeHtml(label)}</span>
+                <span class="image-card-count">${imgs.length}</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+    bindSortBar(cont);
+    cont.querySelectorAll('.image-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const key = card.dataset.group;
+        const label = key === 'unlinked' ? 'No specimen linked' : key;
+        showEnlargedGroup(label, specimenGroups[key]);
+      });
+    });
+  }
+
   render();
 }
 
@@ -356,7 +435,7 @@ function showEnlargedGroup(groupName, imgs) {
       <div class="enlarged-group-grid">
         ${imgs.slice(0, 12).map((img) => `
           <div class="enlarged-group-tile" data-img-index="${img.globalIndex}">
-            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.style.display='none'" />
           </div>
         `).join('')}
       </div>
@@ -446,7 +525,7 @@ function renderImagesGrouped(container) {
           <div class="image-group-grid">
             ${imgs.map((img) => `
               <figure class="image-tile" data-img-index="${img.globalIndex}">
-                <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+                <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.style.display='none'" />
                 <figcaption>${escapeHtml(getAngle(img.category))}</figcaption>
               </figure>
             `).join('')}
@@ -714,6 +793,14 @@ function renderSpecimens(s) {
       });
       if (!hasCoords) return false;
     }
+    if (specimenFilterHasImage) {
+      const specimenImgIds = new Set(
+        (currentSpeciesData?.images || [])
+          .map((img) => img.specimenId)
+          .filter(Boolean)
+      );
+      if (!specimenImgIds.has(sp.specimen_id)) return false;
+    }
     return true;
   });
 
@@ -805,11 +892,18 @@ function renderSpecimens(s) {
       });
       const hasCoords = !!matchingGeolib;
       const coordsParam = matchingGeolib ? `&coords=${encodeURIComponent(matchingGeolib.coordinates)}` : '';
+      const details = [
+        sp.sex ? `${escapeHtml(sp.sex)}` : '',
+        sp.stage ? `${escapeHtml(sp.stage)}` : '',
+        sp.collecting_method ? `${escapeHtml(sp.collecting_method)}` : '',
+      ].filter(Boolean).join(' · ');
+      const detBy = sp.determined_by ? `Det. ${escapeHtml(sp.determined_by)}` : '';
       return `
-        <div class="specimen-row ${hasCoords ? '' : 'no-coords-row'}" data-href="./specimen.html?id=${encodeURIComponent(sp.id)}${coordsParam}">
+        <div class="specimen-row ${hasCoords ? '' : 'no-coords-row'}" data-href="./specimen.html?id=${encodeURIComponent(sp.specimen_id || sp.id)}${coordsParam}">
           <div class="specimen-row-left">
             <div class="specimen-row-main">${escapeHtml(loc)}${hasCoords ? '' : ' <span class="no-coords-badge">No coords</span>'}</div>
-            ${museum ? `<div class="specimen-row-sub">${escapeHtml(museum)}</div>` : ''}
+            ${details ? `<div class="specimen-row-details">${details}</div>` : ''}
+            <div class="specimen-row-sub">${[museum, detBy].filter(Boolean).join(' · ')}</div>
           </div>
           <span class="specimen-row-arrow">></span>
         </div>
@@ -945,6 +1039,8 @@ function renderEvents(s) {
               <th>Elevation</th>
               <th>Coordinates</th>
               <th>Date</th>
+              <th>Collector</th>
+              <th>Habitat</th>
             </tr>
           </thead>
           <tbody>
@@ -955,6 +1051,8 @@ function renderEvents(s) {
                 <td>${escapeHtml(e.elevation)}</td>
                 <td>${escapeHtml(e.coordinates)}</td>
                 <td>${escapeHtml(e.date)}</td>
+                <td>${escapeHtml(e.collector)}</td>
+                <td>${escapeHtml(e.habitat)}</td>
               </tr>
             `).join('')}
           </tbody>
