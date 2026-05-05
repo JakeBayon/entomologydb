@@ -79,23 +79,11 @@ async function loadSpecies() {
     return;
   }
 
-  const cached = sessionStorage.getItem('species_v2:' + speciesId);
-  if (cached) {
-    try {
-      const species = JSON.parse(cached);
-      renderSpecies(species);
-      return;
-    } catch {}
-  }
-
   titleEl.textContent = 'Loading...';
   subtitleEl.textContent = '';
 
   try {
     const species = await getSpecies(speciesId);
-    if (species) {
-      sessionStorage.setItem('species_v2:' + speciesId, JSON.stringify(species));
-    }
     if (!species) {
       titleEl.textContent = 'Species not found';
       subtitleEl.textContent = `ID: ${speciesId}`;
@@ -268,7 +256,7 @@ function renderImagesHero(container) {
           return `
             <div class="image-card" data-group="${escapeHtml(groupName)}">
               <div class="image-card-thumb">
-                <img src="${heroImg.url}" alt="${escapeHtml(groupName)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+                <img src="${heroImg.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(groupName)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
               </div>
               <div class="image-card-info">
                 <span class="image-card-name">${escapeHtml(groupName)}</span>
@@ -306,12 +294,13 @@ function renderImagesHero(container) {
         <span class="image-total-count">${lightboxImages.length} images</span>
       </div>
       <div class="image-all-grid">
-        ${lightboxImages.map((img, idx) => `
+        ${lightboxImages.slice(0, 12).map((img, idx) => `
           <div class="image-all-tile" data-img-index="${idx}">
-            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+            <img src="${img.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
           </div>
         `).join('')}
       </div>
+      ${lightboxImages.length > 12 ? `<div class="enlarged-group-loadmore"><button type="button" class="load-more-btn" id="loadMoreAll">Load ${lightboxImages.length - 12} more images</button></div>` : ''}
     `;
  
     cont.querySelectorAll('.image-sort-btn').forEach((btn) => {
@@ -326,6 +315,25 @@ function renderImagesHero(container) {
         openLightbox(parseInt(tile.dataset.imgIndex, 10));
       });
     });
+
+    const loadMoreAll = cont.querySelector('#loadMoreAll');
+    if (loadMoreAll) {
+      loadMoreAll.addEventListener('click', () => {
+        const grid = cont.querySelector('.image-all-grid');
+        const remaining = lightboxImages.slice(12);
+        grid.insertAdjacentHTML('beforeend', remaining.map((img, i) => `
+          <div class="image-all-tile" data-img-index="${12 + i}">
+            <img src="${img.url.replace('/image/', '/thumb/')}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+          </div>
+        `).join(''));
+        loadMoreAll.parentElement.remove();
+        grid.querySelectorAll('.image-all-tile').forEach((tile) => {
+          tile.addEventListener('click', () => {
+            openLightbox(parseInt(tile.dataset.imgIndex, 10));
+          });
+        });
+      });
+    }
   }
  
   render();
@@ -346,12 +354,13 @@ function showEnlargedGroup(groupName, imgs) {
         <button type="button" class="enlarged-group-close" aria-label="Close">&times;</button>
       </div>
       <div class="enlarged-group-grid">
-        ${imgs.map((img) => `
+        ${imgs.slice(0, 12).map((img) => `
           <div class="enlarged-group-tile" data-img-index="${img.globalIndex}">
             <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
           </div>
         `).join('')}
       </div>
+      ${imgs.length > 12 ? `<div class="enlarged-group-loadmore"><button type="button" class="load-more-btn">Load ${imgs.length - 12} more images</button></div>` : ''}
     </div>
   `;
  
@@ -366,6 +375,25 @@ function showEnlargedGroup(groupName, imgs) {
         openLightbox(i, scopedList);
       });
     });
+  
+  const loadMoreBtn = overlay.querySelector('.load-more-btn');
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', () => {
+        const grid = overlay.querySelector('.enlarged-group-grid');
+        const remaining = imgs.slice(12);
+        grid.insertAdjacentHTML('beforeend', remaining.map((img) => `
+          <div class="enlarged-group-tile" data-img-index="${img.globalIndex}">
+            <img src="${img.url}" alt="${escapeHtml(img.category)}" loading="lazy" onerror="this.src='./seed_beetle_logo_transparent.png'" />
+          </div>
+        `).join(''));
+        loadMoreBtn.parentElement.remove();
+        grid.querySelectorAll('.enlarged-group-tile').forEach((tile) => {
+          tile.addEventListener('click', () => {
+            openLightbox(parseInt(tile.dataset.imgIndex, 10), scopedList);
+          });
+        });
+      });
+    }
  
   document.addEventListener('keydown', function handler(e) {
     if (e.key === 'Escape') {
