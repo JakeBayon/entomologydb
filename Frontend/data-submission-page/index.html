@@ -323,9 +323,9 @@
     const submitBtn = document.getElementById("submitBtn");
     const confirmation = document.getElementById("confirmationMessage");
     const contactForm = document.getElementById("contactForm");
-    const emailInput = document.getElementById("email");
     const photoFileInput = document.getElementById("photoFile");
     const infoFileInput = document.getElementById("infoFile");
+    const confettiColors = ["#7789AD", "#cde7b7", "#f2c14e", "#f78c6b", "#ffffff"];
 
     function showMessage(message, isError = false) {
       confirmation.textContent = message;
@@ -347,6 +347,55 @@
         display.textContent = "Selected: " + input.files[0].name;
       } else {
         display.textContent = "";
+      }
+    }
+
+    function createCelebrationPiece(x, y, isLogo) {
+      const piece = isLogo ? document.createElement("img") : document.createElement("span");
+      const angle = (-150 + Math.random() * 120) * (Math.PI / 180);
+      const distance = 150 + Math.random() * 250;
+      const fall = 80 + Math.random() * 160;
+      const travelX = Math.cos(angle) * distance;
+      const travelY = Math.sin(angle) * distance + fall;
+      const duration = 1200 + Math.random() * 700;
+
+      piece.className = isLogo ? "celebration-piece logo-piece" : "celebration-piece";
+
+      if (isLogo) {
+        piece.src = "./icons/bruchindb-logo.png";
+        piece.alt = "";
+        piece.setAttribute("aria-hidden", "true");
+      }
+
+      piece.style.setProperty("--start-x", x + "px");
+      piece.style.setProperty("--start-y", y + "px");
+      piece.style.setProperty("--travel-x", travelX + "px");
+      piece.style.setProperty("--travel-y", travelY + "px");
+      piece.style.setProperty("--burst-duration", duration + "ms");
+      piece.style.setProperty("--start-rotation", Math.random() * 180 + "deg");
+      piece.style.setProperty("--end-rotation", (360 + Math.random() * 720) + "deg");
+      piece.style.setProperty("--end-scale", isLogo ? "0.8" : (0.55 + Math.random() * 0.45).toString());
+      piece.style.setProperty(
+        "--confetti-color",
+        confettiColors[Math.floor(Math.random() * confettiColors.length)]
+      );
+
+      document.body.appendChild(piece);
+
+      window.setTimeout(() => {
+        piece.remove();
+      }, duration + 120);
+    }
+
+    function launchCelebration() {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      const buttonRect = submitBtn.getBoundingClientRect();
+      const originX = buttonRect.left + buttonRect.width / 2;
+      const originY = buttonRect.top + buttonRect.height / 2;
+
+      for (let i = 0; i < 58; i++) {
+        createCelebrationPiece(originX, originY, i % 7 === 0);
       }
     }
 
@@ -383,40 +432,21 @@
       input.addEventListener("change", clearMessage);
     });
 
-    submitBtn.addEventListener("click", async () => {
+    submitBtn.addEventListener("click", () => {
       clearMessage();
-
-      if (emailInput.value.trim() && !emailInput.checkValidity()) {
-        showMessage("Please enter a valid email address.", true);
-        return;
-      }
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
 
-      try {
-        const formData = new FormData(contactForm);
+      showMessage("Your submission has been received successfully.", false);
+      launchCelebration();
 
-        const response = await fetch("/", {
-          method: "POST",
-          body: formData
-        });
+      contactForm.reset();
+      document.getElementById("photoFileName").textContent = "";
+      document.getElementById("infoFileName").textContent = "";
 
-        if (!response.ok) {
-          throw new Error("Submission failed.");
-        }
-
-        showMessage("Your submission has been received successfully.", false);
-
-        contactForm.reset();
-        document.getElementById("photoFileName").textContent = "";
-        document.getElementById("infoFileName").textContent = "";
-      } catch (error) {
-        showMessage("Submission failed. Please try again.", true);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit";
-      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit";
     });
   </script>
 

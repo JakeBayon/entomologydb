@@ -415,6 +415,48 @@ h1{
   color:#9b1c1c;
 }
 
+.celebration-piece{
+  position:fixed;
+  left:var(--start-x);
+  top:var(--start-y);
+  width:12px;
+  height:18px;
+  background:var(--confetti-color);
+  border-radius:2px;
+  pointer-events:none;
+  z-index:999;
+  transform:translate(-50%, -50%) rotate(var(--start-rotation));
+  animation:confettiBurst var(--burst-duration) cubic-bezier(0.12, 0.78, 0.24, 1) forwards;
+}
+
+.celebration-piece.logo-piece{
+  width:34px;
+  height:34px;
+  background:transparent;
+  border-radius:50%;
+  object-fit:contain;
+  filter:drop-shadow(0 4px 8px rgba(17,17,17,0.18));
+}
+
+@keyframes confettiBurst{
+  0%{
+    opacity:1;
+    transform:translate(-50%, -50%) rotate(var(--start-rotation)) scale(0.75);
+  }
+
+  62%{
+    opacity:1;
+  }
+
+  100%{
+    opacity:0;
+    transform:
+      translate(calc(-50% + var(--travel-x)), calc(-50% + var(--travel-y)))
+      rotate(var(--end-rotation))
+      scale(var(--end-scale));
+  }
+}
+
 .hidden{
   display:none;
 }
