@@ -444,7 +444,7 @@ h1{
     transform:translate(-50%, -50%) rotate(var(--start-rotation)) scale(0.75);
   }
 
-  62%{
+  78%{
     opacity:1;
   }
 
