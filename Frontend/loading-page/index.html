@@ -3,36 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Loading | EntomologyDB</title>
+  <title>Play | BruchinDB</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../welcome-page/index.html">
+        <img src="../data-submission-page/icons/bruchindb-logo.png" alt="BruchinDB logo" class="brand-logo" />
+        <span class="brand-name">BruchinDB</span>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="../search-page/index.html">Search</a>
+        <a class="nav-link" href="../map-page/index.html">Map</a>
+        <a class="nav-link active" href="../loading-page/index.html">Play</a>
+        <a class="nav-link" href="../data-submission-page/index.html">Submit Data</a>
+        <a class="nav-link" href="../about-page/index.html">About</a>
+      </nav>
+    </div>
+  </header>
 
   <main class="loading-wrap" id="loading-wrap">
-    <section class="loading-card" id="loading-card">
+    <section class="play-panel" id="loading-card">
+      <div class="play-copy">
+        <p class="play-kicker">BruchinDB Play</p>
+        <h1>Beetle Runner</h1>
+        <p class="play-intro">
+          Guide the seed beetle across the track, clear obstacles, and chase a new high score.
+        </p>
 
-      <!-- beetle image -->
-      <img
-        src="./icons/beetle.png"
-        alt="Seed beetle icon"
-        class="beetle-img"
-      />
+        <div class="play-actions">
+          <button class="play-btn" id="start-game-btn" type="button">Start Game</button>
+          <span class="key-hint">Space / ↑ to jump</span>
+        </div>
 
-      <!-- loading text -->
-      <div class="loading-text">
-        <span>LOADING</span>
-        <span id="dots">...</span>
+        <p class="fact">
+          <span class="fact-bold">Did you know?</span>
+          <span id="fact-text"></span>
+        </p>
       </div>
 
-      <!-- random fact -->
-      <p class="fact">
-        <span class="fact-bold">DID YOU KNOW?</span>
-        <span id="fact-text"></span>
-      </p>
-
-      <!-- start game hint -->
-      <p class="game-hint">press space bar to play beetle runner</p>
+      <div class="play-visual" aria-hidden="true">
+        <span class="pulse-ring"></span>
+        <img src="./icons/beetle.png" alt="" class="beetle-img" />
+        <div class="loading-text">
+          <span>READY</span>
+          <span id="dots">...</span>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -83,6 +103,7 @@
     const loadingWrap = document.getElementById("loading-wrap");
     const gameWrap = document.getElementById("game-wrap");
     const gameSubtext = document.getElementById("game-subtext");
+    const startGameBtn = document.getElementById("start-game-btn");
 
     const canvas = document.getElementById("game-canvas");
     const ctx = canvas.getContext("2d");
@@ -130,6 +151,8 @@
       resetGame();
       loop(0);
     }
+
+    startGameBtn.addEventListener("click", startGame);
 
     function resetGame() {
       cancelAnimationFrame(animationId);
