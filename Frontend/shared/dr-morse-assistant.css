@@ -1,0 +1,180 @@
+.dr-morse-widget{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  z-index:1000;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+.dr-morse-launcher{
+  width:78px;
+  height:78px;
+  border:0;
+  border-radius:50%;
+  padding:0;
+  background:#ffffff;
+  box-shadow:0 14px 34px rgba(17,17,17,0.22);
+  cursor:pointer;
+}
+
+.dr-morse-launcher img{
+  width:100%;
+  height:100%;
+  display:block;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.dr-morse-panel{
+  position:absolute;
+  right:0;
+  bottom:94px;
+  width:360px;
+  max-width:calc(100vw - 32px);
+  background:#ffffff;
+  border:1px solid rgba(119,137,173,0.22);
+  border-radius:8px;
+  box-shadow:0 20px 48px rgba(17,17,17,0.18);
+  overflow:hidden;
+}
+
+.dr-morse-panel.hidden{
+  display:none;
+}
+
+.dr-morse-header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  background:#7789AD;
+  color:#ffffff;
+}
+
+.dr-morse-header img{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:#ffffff;
+}
+
+.dr-morse-title{
+  margin:0;
+  font-size:18px;
+  font-weight:900;
+}
+
+.dr-morse-subtitle{
+  margin:2px 0 0 0;
+  font-size:13px;
+  font-weight:700;
+  opacity:0.86;
+}
+
+.dr-morse-close{
+  margin-left:auto;
+  width:34px;
+  height:34px;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,0.18);
+  color:#ffffff;
+  font-size:24px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.dr-morse-messages{
+  display:grid;
+  gap:10px;
+  max-height:260px;
+  overflow:auto;
+  padding:16px;
+  background:#f7f9fc;
+}
+
+.dr-morse-message{
+  margin:0;
+  padding:11px 13px;
+  border-radius:8px;
+  color:#20242b;
+  font-size:14px;
+  line-height:1.4;
+}
+
+.dr-morse-message.assistant{
+  background:#ffffff;
+  border:1px solid rgba(119,137,173,0.18);
+}
+
+.dr-morse-message.user{
+  justify-self:end;
+  max-width:86%;
+  background:#7789AD;
+  color:#ffffff;
+}
+
+.dr-morse-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:0 16px 14px 16px;
+  background:#f7f9fc;
+}
+
+.dr-morse-chip{
+  border:1px solid rgba(119,137,173,0.35);
+  border-radius:999px;
+  background:#ffffff;
+  color:#263145;
+  padding:8px 11px;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.dr-morse-form{
+  display:flex;
+  gap:8px;
+  padding:14px 16px 16px 16px;
+  border-top:1px solid rgba(119,137,173,0.18);
+}
+
+.dr-morse-input{
+  min-width:0;
+  flex:1;
+  height:40px;
+  border:1px solid rgba(119,137,173,0.35);
+  border-radius:6px;
+  padding:0 11px;
+  color:#20242b;
+  font-size:14px;
+}
+
+.dr-morse-send{
+  height:40px;
+  border:0;
+  border-radius:6px;
+  background:#7789AD;
+  color:#ffffff;
+  padding:0 14px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+@media (max-width:520px){
+  .dr-morse-widget{
+    right:16px;
+    bottom:16px;
+  }
+
+  .dr-morse-launcher{
+    width:66px;
+    height:66px;
+  }
+
+  .dr-morse-panel{
+    bottom:82px;
+  }
+}
