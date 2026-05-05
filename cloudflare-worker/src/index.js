@@ -291,44 +291,7 @@ async function streamImage(imgUrl) {
 // ============================================================
 
 function stripSpeciesFields(responseText) {
-  try {
-    const data = JSON.parse(responseText);
-    if (!data?.response?.data) return responseText;
-
-    const keepFields = [
-      'Species_ID', 'Genus', 'Subgenus', 'Species', 'Subspecies',
-      'Author', 'Year', 'Validity', 'Tribe', 'Common',
-    ];
-
-    data.response.data = data.response.data.map((record) => {
-      const slimFieldData = Object.fromEntries(
-        keepFields
-          .filter((k) => k in record.fieldData)
-          .map((k) => [k, record.fieldData[k]])
-      );
-
-      const slimPortalData = {};
-      if (record.portalData?.Related_images) {
-        slimPortalData.Related_images = record.portalData.Related_images.map((img) => ({
-          'Related_images::image_container': img['Related_images::image_container'],
-          'Related_images::image_category': img['Related_images::image_category'],
-          'Related_images::full caption': img['Related_images::full caption'],
-          'Related_images::source': img['Related_images::source'],
-          'Related_images::copyright': img['Related_images::copyright'],
-        }));
-      }
-      for (const portal of ['Specimens', 'Events', 'Geolib', 'Host species', 'Host specimens']) {
-        if (record.portalData?.[portal]) {
-          slimPortalData[portal] = record.portalData[portal];
-        }
-      }
-
-      return { ...record, fieldData: slimFieldData, portalData: slimPortalData };
-    });
-    return JSON.stringify(data);
-  } catch {
-    return responseText;
-  }
+  return responseText;
 }
 
 function stripEventFields(responseText) {
@@ -467,6 +430,52 @@ export default {
         // Cache it
         ctx.waitUntil(cache.put(cacheKey, response.clone()));
         return response;
+      }
+
+      // ---- THUMBNAIL PROXY ----
+      if (pathParts.startsWith('thumb/')) {
+        const cache = caches.default;
+        const cacheKey = new Request(url.toString(), { method: 'GET' });
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) return cachedResponse;
+
+        const segments = pathParts.split('/');
+        if (segments.length < 3) return jsonResponse({ error: 'Bad thumb path' }, 400);
+
+        const speciesId = segments[1];
+        const index = parseInt(segments[2], 10);
+        const width = parseInt(url.searchParams.get('w') || '200', 10);
+
+        const imageUrls = await getAllowedImageUrls(env, speciesId);
+        if (!imageUrls || !imageUrls[index]) return jsonResponse({ error: 'Not found' }, 404);
+
+        // Fetch with Cloudflare Image Resizing
+        const imageResp = await fetch(imageUrls[index], {
+          cf: {
+            image: {
+              width: width,
+              quality: 70,
+              format: 'webp',
+              fit: 'contain',
+            },
+          },
+        });
+
+        if (!imageResp.ok) {
+          // Fallback: serve original if resizing fails
+          return streamImage(imageUrls[index]);
+        }
+
+        const resp = new Response(imageResp.body, {
+          headers: {
+            ...CORS_HEADERS,
+            'Content-Type': 'image/webp',
+            'Cache-Control': `public, max-age=${CACHE_TTL_IMAGE}`,
+          },
+        });
+
+        ctx.waitUntil(cache.put(cacheKey, resp.clone()));
+        return resp;
       }
 
       // ---- IMAGE PROXY ----
