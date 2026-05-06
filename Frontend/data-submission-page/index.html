@@ -329,7 +329,7 @@
     const EMAILJS_CONFIG = {
       publicKey: "CJ0PZzXSw4LZMhTDR",
       serviceId: "service_ngsm39l",
-      templateId: "template_jeiotpe"
+      templateId: "template_jel0tpe"
     };
 
     const submitBtn = document.getElementById("submitBtn");
@@ -527,7 +527,11 @@
         document.getElementById("photoFileName").textContent = "";
         document.getElementById("infoFileName").textContent = "";
       } catch (error) {
-        showMessage("Something went wrong while sending your submission. Please try again in a moment.", true);
+        console.error("EmailJS submission failed:", error);
+        const errorDetails = error && (error.text || error.message || error.status)
+          ? ` EmailJS said: ${error.text || error.message || error.status}.`
+          : "";
+        showMessage(`Something went wrong while sending your submission.${errorDetails}`, true);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit";
