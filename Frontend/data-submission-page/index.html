@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Submit Data | BruchinDB</title>
   <link rel="stylesheet" href="./style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 
 <body>
@@ -71,6 +72,8 @@
         >
           <input type="hidden" name="form-name" value="bruchindb-submission" />
           <input type="hidden" name="subject" value="BruchinDB | New Seed Beetle Submission" />
+          <input type="hidden" name="to_email" value="jbayon@sandiego.edu" />
+          <input type="hidden" name="submission_summary" id="submissionSummary" />
 
           <p class="hidden">
             <label>Do not fill this out: <input name="bot-field" /></label>
@@ -215,6 +218,7 @@
                     class="input"
                     placeholder="First Name"
                     autocomplete="given-name"
+                    required
                   />
                 </div>
 
@@ -226,6 +230,7 @@
                     class="input"
                     placeholder="Last Name"
                     autocomplete="family-name"
+                    required
                   />
                 </div>
               </div>
@@ -242,6 +247,7 @@
                   class="input"
                   placeholder="ex: myname@example.com"
                   autocomplete="email"
+                  required
                 />
               </div>
             </div>
@@ -313,19 +319,37 @@
     <!-- Submit button section -->
     <section class="submit-section">
       <div class="submit-wrap">
-        <button class="submit-btn" id="submitBtn" type="button">Submit</button>
+        <button class="submit-btn" id="submitBtn" type="submit" form="contactForm">Submit</button>
         <p id="confirmationMessage" class="confirmation hidden" aria-live="polite"></p>
       </div>
     </section>
   </main>
 
   <script>
+    const EMAILJS_CONFIG = {
+      publicKey: "CJ0PZzXSw4LZMhTDR",
+      serviceId: "service_ngsm39l",
+      templateId: "template_jeiotpe"
+    };
+
     const submitBtn = document.getElementById("submitBtn");
     const confirmation = document.getElementById("confirmationMessage");
     const contactForm = document.getElementById("contactForm");
     const photoFileInput = document.getElementById("photoFile");
     const infoFileInput = document.getElementById("infoFile");
+    const submissionSummary = document.getElementById("submissionSummary");
     const confettiColors = ["#7789AD", "#cde7b7", "#f2c14e", "#f78c6b", "#ffffff"];
+    const emailJsPlaceholderValues = new Set([
+      "YOUR_EMAILJS_PUBLIC_KEY",
+      "YOUR_EMAILJS_SERVICE_ID",
+      "YOUR_EMAILJS_TEMPLATE_ID"
+    ]);
+
+    if (window.emailjs && !emailJsPlaceholderValues.has(EMAILJS_CONFIG.publicKey)) {
+      emailjs.init({
+        publicKey: EMAILJS_CONFIG.publicKey
+      });
+    }
 
     function showMessage(message, isError = false) {
       confirmation.textContent = message;
@@ -348,6 +372,45 @@
       } else {
         display.textContent = "";
       }
+    }
+
+    function emailJsIsConfigured() {
+      return (
+        window.emailjs &&
+        !emailJsPlaceholderValues.has(EMAILJS_CONFIG.publicKey) &&
+        !emailJsPlaceholderValues.has(EMAILJS_CONFIG.serviceId) &&
+        !emailJsPlaceholderValues.has(EMAILJS_CONFIG.templateId)
+      );
+    }
+
+    function getCheckedValue(formData, fieldName) {
+      return formData.get(fieldName) || "";
+    }
+
+    function getFileName(input) {
+      return input.files && input.files.length > 0 ? input.files[0].name : "";
+    }
+
+    function buildSubmissionSummary() {
+      const formData = new FormData(contactForm);
+      const rows = [
+        ["First name", formData.get("firstName")],
+        ["Last name", formData.get("lastName")],
+        ["Email", formData.get("email")],
+        ["Latitude", formData.get("latitude")],
+        ["Longitude", formData.get("longitude")],
+        ["Location description", formData.get("locationDescription")],
+        ["Host plant name", formData.get("hostPlantName")],
+        ["Host type", getCheckedValue(formData, "hostType")],
+        ["Collection date", formData.get("collectionDate")],
+        ["Description", formData.get("description")],
+        ["Photo file", getFileName(photoFileInput)],
+        ["Additional information file", getFileName(infoFileInput)]
+      ];
+
+      return rows
+        .map(([label, value]) => `${label}: ${String(value || "").trim() || "Not provided"}`)
+        .join("\n");
     }
 
     function createCelebrationPiece(x, y, isLogo) {
@@ -432,21 +495,43 @@
       input.addEventListener("change", clearMessage);
     });
 
-    submitBtn.addEventListener("click", () => {
+    contactForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
       clearMessage();
 
+      if (!contactForm.checkValidity()) {
+        contactForm.reportValidity();
+        return;
+      }
+
+      if (!emailJsIsConfigured()) {
+        showMessage("EmailJS is not configured yet. Add your Public Key, Service ID, and Template ID in this page's EMAILJS_CONFIG block.", true);
+        return;
+      }
+
+      submissionSummary.value = buildSubmissionSummary();
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting...";
 
-      showMessage("Your submission has been received successfully.", false);
-      launchCelebration();
+      try {
+        await emailjs.sendForm(
+          EMAILJS_CONFIG.serviceId,
+          EMAILJS_CONFIG.templateId,
+          contactForm
+        );
 
-      contactForm.reset();
-      document.getElementById("photoFileName").textContent = "";
-      document.getElementById("infoFileName").textContent = "";
+        showMessage("Your submission has been received successfully.", false);
+        launchCelebration();
 
-      submitBtn.disabled = false;
-      submitBtn.textContent = "Submit";
+        contactForm.reset();
+        document.getElementById("photoFileName").textContent = "";
+        document.getElementById("infoFileName").textContent = "";
+      } catch (error) {
+        showMessage("Something went wrong while sending your submission. Please try again in a moment.", true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit";
+      }
     });
   </script>
 
