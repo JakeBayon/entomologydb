@@ -10,7 +10,6 @@ import {
   getMapPoints,
   TRIBES,
 } from '../shared/bruchindb-api.js';
-import { CONFIG } from '../shared/config.js';
 
 sessionStorage.removeItem('breadcrumbActive');
 
