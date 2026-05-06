@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-labelledby="title desc">
+  <title id="title">Dr. Samenkäfer</title>
+  <desc id="desc">A cheerful seed beetle assistant wearing a green field hat.</desc>
+  <defs>
+    <radialGradient id="bg" cx="48%" cy="42%" r="63%">
+      <stop offset="0" stop-color="#f9ffe8"/>
+      <stop offset=".44" stop-color="#a8d866"/>
+      <stop offset="1" stop-color="#3c85d9"/>
+    </radialGradient>
+    <linearGradient id="hat" x1="40" x2="182" y1="60" y2="82">
+      <stop offset="0" stop-color="#476f2a"/>
+      <stop offset=".52" stop-color="#87a947"/>
+      <stop offset="1" stop-color="#2f5f26"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" x2="1">
+      <stop offset="0" stop-color="#bdf44f"/>
+      <stop offset="1" stop-color="#49a83c"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="110" cy="110" r="96" fill="url(#bg)" stroke="#1d6dc8" stroke-width="6"/>
+
+  <g opacity=".95">
+    <ellipse cx="58" cy="126" rx="18" ry="38" fill="url(#leaf)" stroke="#2e862d" stroke-width="4" transform="rotate(-48 58 126)"/>
+    <ellipse cx="160" cy="124" rx="18" ry="39" fill="url(#leaf)" stroke="#2e862d" stroke-width="4" transform="rotate(45 160 124)"/>
+    <ellipse cx="83" cy="143" rx="15" ry="33" fill="url(#leaf)" stroke="#2e862d" stroke-width="4" transform="rotate(-24 83 143)"/>
+    <ellipse cx="137" cy="144" rx="15" ry="33" fill="url(#leaf)" stroke="#2e862d" stroke-width="4" transform="rotate(25 137 144)"/>
+  </g>
+
+  <g transform="translate(0 2)">
+    <path d="M75 149c4-23 19-36 35-36s31 13 35 36l9 35H66z" fill="#60452d" stroke="#2a241e" stroke-width="5"/>
+    <path d="M89 143v39M131 143v39" stroke="#a36f39" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="110" cy="88" r="48" fill="#fff2d3" stroke="#2a241e" stroke-width="5"/>
+    <path d="M73 88c-7 4-10 15-5 24s15 12 21 7M147 88c7 4 10 15 5 24s-15 12-21 7" fill="#ffd1ad" stroke="#2a241e" stroke-width="4"/>
+    <circle cx="91" cy="89" r="6" fill="#2a241e"/>
+    <circle cx="129" cy="89" r="6" fill="#2a241e"/>
+    <circle cx="76" cy="104" r="8" fill="#ff7f62" opacity=".85"/>
+    <circle cx="144" cy="104" r="8" fill="#ff7f62" opacity=".85"/>
+    <path d="M88 111c12 15 33 15 45 0" fill="#fff" stroke="#2a241e" stroke-width="6" stroke-linecap="round"/>
+    <path d="M95 70c8-9 20-9 28 0" fill="none" stroke="#2a241e" stroke-width="5" stroke-linecap="round"/>
+    <path d="M63 71c11-33 82-33 94 0" fill="url(#hat)" stroke="#1d2118" stroke-width="6"/>
+    <path d="M43 79c28-22 107-25 140 1-21 20-111 25-140-1z" fill="url(#hat)" stroke="#1d2118" stroke-width="6"/>
+    <path d="M73 62c26-8 61-8 87 0" fill="none" stroke="#6b431f" stroke-width="8" stroke-linecap="round"/>
+    <path d="M160 49c15-19 29-27 39-22 2 14-8 29-31 39z" fill="#f5dfb2" stroke="#5e351f" stroke-width="4"/>
+    <path d="M166 60c10-11 20-19 30-28" stroke="#8a5b2f" stroke-width="3" stroke-linecap="round"/>
+    <rect x="151" y="52" width="31" height="20" rx="5" fill="#1f2841" stroke="#1d2118" stroke-width="4" transform="rotate(8 151 52)"/>
+    <path d="M158 59l20 3" stroke="#ff6f2e" stroke-width="5" stroke-linecap="round"/>
+    <path d="M158 65l20 3" stroke="#f7d334" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(30 154)">
+    <ellipse cx="24" cy="11" rx="18" ry="10" fill="#efe949" stroke="#2a241e" stroke-width="4" transform="rotate(-26 24 11)"/>
+    <circle cx="68" cy="12" r="17" fill="#e9fff5" stroke="#28423a" stroke-width="5"/>
+    <circle cx="68" cy="12" r="8" fill="#ed5a37" stroke="#2a241e" stroke-width="3"/>
+    <circle cx="64" cy="9" r="2" fill="#2a241e"/>
+    <circle cx="72" cy="11" r="2" fill="#2a241e"/>
+    <path d="M57 26L38 44" stroke="#2a241e" stroke-width="7" stroke-linecap="round"/>
+  </g>
+</svg>
