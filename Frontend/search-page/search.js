@@ -2,12 +2,15 @@
 // Hooks up the filter sidebar to the BruchinDB API and renders results.
 // Reads URL params (localityId, bounds) to apply filters from the map page.
 
+import { CONFIG } from '../shared/config.js';
+
 import {
   searchSpecies,
   getLocality,
   getMapPoints,
   TRIBES,
 } from '../shared/bruchindb-api.js';
+import { CONFIG } from '../shared/config.js';
 
 sessionStorage.removeItem('breadcrumbActive');
 
@@ -50,7 +53,19 @@ const PAGE_SIZE = 50;
 let currentPage = 1;
 let lastResults = [];
 
-searchSpecies({}).then((all) => { allSpeciesCache = all; });
+searchSpecies({}).then((all) => {
+  allSpeciesCache = all;
+  // Build host index from search results
+  const hostSet = new Map();
+  for (const s of all) {
+    for (const h of (s.hosts || [])) {
+      if (h.name && !hostSet.has(h.name)) {
+        hostSet.set(h.name, { name: h.name, tribe: h.tribe, speciesId: s.Species_ID });
+      }
+    }
+  }
+  allHostsCache = [...hostSet.values()];
+});
 
 // Location autocomplete state
 let locationsData = null;
@@ -222,7 +237,7 @@ function renderChipList(container, selectedSet, onChange) {
 })();
 
 // Host plant autocomplete
-let allHostsCache = JSON.parse(localStorage.getItem('hostIndex') || '[]');
+let allHostsCache = [];
 
 if (hostInput && hostSuggestions && hostChips) {
   hostInput.addEventListener('input', () => {
@@ -558,9 +573,10 @@ function renderCards(species) {
         <span class="learn-more">Learn More →</span>      </div>
       <img
         class="species-img"
-        src="${(() => { try { const t = JSON.parse(localStorage.getItem('speciesThumbs') || '{}'); return t[s.Species_ID] || './seed_beetle_logo_transparent.png'; } catch(e) { return './seed_beetle_logo_transparent.png'; } })()}"
+        src="${CONFIG.fileMakerUrl}/photo/${encodeURIComponent(s.Species_ID)}"
         onerror="this.src='./seed_beetle_logo_transparent.png'"
         alt="${escapeHtml(s.Full_name)}"
+        loading="lazy"
       />
     </a>
   `).join('');
@@ -705,6 +721,7 @@ function applySortToResults() {
     if (mode === 'az') return a.Full_name.localeCompare(b.Full_name);
     if (mode === 'za') return b.Full_name.localeCompare(a.Full_name);
     if (mode === 'tribe') return (a.Tribe || '').localeCompare(b.Tribe || '') || a.Full_name.localeCompare(b.Full_name);
+    if (mode === 'specimens') return (b.specimen_count || 0) - (a.specimen_count || 0) || a.Full_name.localeCompare(b.Full_name);
     return 0;
   });
 }
