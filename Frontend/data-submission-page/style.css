@@ -134,7 +134,11 @@ h1{
 /* BLUE SECTION */
 .blue-section{
   margin-top:70px;
-  background:var(--section);
+  background-color:var(--section);
+  background-image:url("./images/background.png");
+  background-repeat:no-repeat;
+  background-position:center top;
+  background-size:100% 100%;
   padding:48px 0 86px 0;
 }
 
