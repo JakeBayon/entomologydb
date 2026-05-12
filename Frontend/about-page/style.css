@@ -15,7 +15,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 
-/* TOP BAR */
+/* top bar */
 .topbar{
   height:76px;
   background:var(--bar);
@@ -50,7 +50,7 @@ body{
   font-size:26px;
 }
 
-/* NAV LINKS */
+/* navigation links */
 .nav{
   display:flex;
   align-items:center;
@@ -82,7 +82,7 @@ body{
   border-radius:999px;
 }
 
-/* PAGE CONTENT */
+/* page content */
 .page{ min-height:calc(100vh - 76px); }
 
 .about-intro{
@@ -140,7 +140,7 @@ h1{
 
 
 
-/* MOVING PHOTO DISPLAY */
+/* moving photo display */
 
 .about-photo-strip{
   width:100%;
