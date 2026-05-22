@@ -101,7 +101,7 @@ if (!MAP_STYLES[currentStyle]) currentStyle = 'default';
 
 const map = new maplibregl.Map({
   container: "map",
-  style: MAP_STYLES[currentStyle]?.url || MAP_STYLES.positron.url,
+  style: MAP_STYLES[currentStyle]?.url ?? MAP_STYLES.default.url,
   center: [-85, 10],
   zoom: 3,
 });
