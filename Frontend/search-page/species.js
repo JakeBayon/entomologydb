@@ -21,7 +21,7 @@ let specimenFilterYearMin = '';
 let specimenFilterYearMax = '';
 let specimenPage = 1;
 let specimenIncludeNoCoords = true;
-const SPECIMENS_PER_PAGE = 25;
+let SPECIMENS_PER_PAGE = 25;
 
 function saveSpecimenFilters() {
   sessionStorage.setItem('specFilters:' + speciesId, JSON.stringify({
