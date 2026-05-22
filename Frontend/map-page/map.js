@@ -3,7 +3,7 @@
 // and renders them as clustered pins. All filtering is client-side.
 // First load may take 1-2 minutes; subsequent loads are instant from cache.
 
-import { getMapPoints, getLocality, getLocalityCountries, TRIBES } from '../shared/bruchindb-api.js';
+import { getMapPoints, getLocality, getLocalityCountries, TRIBES, getGenusTribeMap } from '../shared/bruchindb-api.js';
 import { polygonFromCorners } from './boundingbox-utils.js';
 
 
@@ -601,7 +601,7 @@ async function loadSpecimenPoints() {
 
     // Filter to only valid species using genus allowlist
     updateLoadingState('Filtering valid species...');
-    const { getGenusTribeMap } = await import('../shared/bruchindb-api.js');
+    // getGenusTribeMap imported at top
     const genusTribeMap = await getGenusTribeMap();
     const validGenera = new Set(Object.keys(genusTribeMap));
 
