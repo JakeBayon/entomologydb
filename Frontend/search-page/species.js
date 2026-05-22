@@ -21,7 +21,7 @@ let specimenFilterYearMin = '';
 let specimenFilterYearMax = '';
 let specimenPage = 1;
 let specimenIncludeNoCoords = true;
-const SPECIMENS_PER_PAGE = 10;
+const SPECIMENS_PER_PAGE = 25;
 
 function saveSpecimenFilters() {
   sessionStorage.setItem('specFilters:' + speciesId, JSON.stringify({
@@ -120,16 +120,7 @@ function renderSpecies(s) {
   const counts = [];
   if (s.specimens.length) counts.push(`${s.specimens.length} specimens`);
   if (s.events.length) counts.push(`${s.events.length} events`);
-  const photoImages = s.images.filter((img) => {
-    const type = (img.category || '').split(':')[0].trim().toLowerCase();
-    return type !== 'illustration';
-  });
-  const illustImages = s.images.filter((img) => {
-    const type = (img.category || '').split(':')[0].trim().toLowerCase();
-    return type === 'illustration';
-  });
-  if (photoImages.length) counts.push(`${photoImages.length} photos`);
-  if (illustImages.length) counts.push(`${illustImages.length} illustrations`);
+  if (s.images.length) counts.push(`${s.images.length} photos`);
   subtitleEl.textContent = counts.join(' · ') || 'No records';
   const breadcrumbSpecies = document.getElementById('breadcrumb-species');
   if (breadcrumbSpecies) breadcrumbSpecies.textContent = s.Full_name;
@@ -181,7 +172,6 @@ let lightboxImages = [];
 let lightboxIndex = 0;
 let tabbedView = sessionStorage.getItem('speciesViewMode') === 'tabbed';
 
-let showIllustrations = false;
 
 function renderImages(s) {
   const container = document.querySelector('#images .image-grid');
@@ -189,7 +179,6 @@ function renderImages(s) {
 
   const proxyBase = CONFIG.fileMakerUrl + '/image/' + encodeURIComponent(s.Species_ID);
 
-  // Build full image list (all images, including illustrations)
   const allRawImages = (s.images || [])
     .map((img) => ({
       url: `${proxyBase}/${img.originalIndex != null ? img.originalIndex : 0}`,
@@ -201,21 +190,11 @@ function renderImages(s) {
       imageId: img.imageId || '',
       specimenId: img.specimenId || '',
       hasFile: !!(img.url && img.url.length > 0),
-      isIllustration: img.category ? img.category.split(':')[0].trim().toLowerCase() === 'illustration' : false,
     }))
-    .filter((img) => img.hasFile);
+    .filter((img) => img.hasFile)
+    .filter((img) => !img.custom2.toLowerCase().includes('published'));
 
-  // Filter based on illustration toggle
-  // Always filter out published images
-  const nonPublished = allRawImages.filter((img) =>
-    !img.custom2.toLowerCase().includes('published')
-  );
-  lightboxImages = showIllustrations
-    ? nonPublished
-    : nonPublished.filter((img) => !img.isIllustration);
-
-  const illustrationCount = allRawImages.filter((img) => img.isIllustration).length;
-  const photoCount = allRawImages.length - illustrationCount;
+  lightboxImages = allRawImages;
 
   if (!allRawImages.length) {
     container.innerHTML = '<div class="empty-state"><p>No images available yet</p><p class="empty-hint">Images will appear here once added to the database.</p></div>';
@@ -223,26 +202,10 @@ function renderImages(s) {
     return;
   }
 
-  if (!lightboxImages.length && !showIllustrations) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>No photographs available</p>
-        <p class="empty-hint">${illustrationCount} illustration${illustrationCount !== 1 ? 's' : ''} available.
-          <a href="#" id="show-illust-link">Show illustrations</a>
-        </p>
-      </div>`;
-    container.querySelector('#show-illust-link')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      showIllustrations = true;
-      renderImages(currentSpeciesData);
-    });
-    return;
-  }
-
   if (tabbedView) {
     renderImagesGrouped(container);
   } else {
-    renderImagesHero(container, illustrationCount);
+    renderImagesHero(container);
   }
 
   // Cache dorsal thumbnail
@@ -254,7 +217,7 @@ function renderImages(s) {
 }
 
 
-function renderImagesHero(container, illustrationCount) {
+function renderImagesHero(container) {
   const getAngle = (category) => {
     const parts = category.split(':');
     return parts.length > 1 ? parts.slice(1).join(':').trim() : category.trim();
@@ -869,6 +832,12 @@ function renderSpecimens(s) {
           <span>Include specimens without coordinates</span>
         </label>
         <span class="specimen-count-label">${filtered.length} of ${specimens.length}</span>
+        <select class="specimen-dropdown" id="specimens-per-page">
+          <option value="10" ${SPECIMENS_PER_PAGE === 10 ? 'selected' : ''}>10 per page</option>
+          <option value="25" ${SPECIMENS_PER_PAGE === 25 ? 'selected' : ''}>25 per page</option>
+          <option value="50" ${SPECIMENS_PER_PAGE === 50 ? 'selected' : ''}>50 per page</option>
+          <option value="100" ${SPECIMENS_PER_PAGE === 100 ? 'selected' : ''}>100 per page</option>
+        </select>
       </div>
     </div>
     ${allChips.length > 0 || selectedLocality || selectedEvent ? `
@@ -947,6 +916,9 @@ function renderSpecimens(s) {
   if (hasImageCheck) { hasImageCheck.addEventListener('change', () => { specimenFilterHasImage = hasImageCheck.checked; specimenPage = 1; renderSpecimens(currentSpeciesData); }); }
   const noCoordsCheck = container.querySelector('#filter-no-coords');
   if (noCoordsCheck) { noCoordsCheck.addEventListener('change', () => { specimenIncludeNoCoords = noCoordsCheck.checked; specimenPage = 1; renderSpecimens(currentSpeciesData); }); }
+
+  const perPageSelect = container.querySelector('#specimens-per-page');
+  if (perPageSelect) { perPageSelect.addEventListener('change', () => { SPECIMENS_PER_PAGE = parseInt(perPageSelect.value, 10); specimenPage = 1; renderSpecimens(currentSpeciesData); }); }
 
   container.querySelectorAll('.chip-x').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1307,9 +1279,13 @@ function renderMap(s) {
       id: 'clusters', type: 'circle', source: 'localities',
       filter: ['has', 'point_count'],
       paint: {
-        'circle-color': '#d9534f',
-        'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 15, 30],
-        'circle-stroke-width': 2, 'circle-stroke-color': '#fff',
+        'circle-color': [
+          'step', ['get', 'point_count'],
+          '#4da6ff', 5, '#3d8bfd', 15, '#f59e0b',
+        ],
+        'circle-radius': ['step', ['get', 'point_count'], 16, 5, 22, 15, 28],
+        'circle-stroke-width': 2.5, 'circle-stroke-color': '#fff',
+        'circle-opacity': 0.9,
       },
     });
 
@@ -1327,7 +1303,7 @@ function renderMap(s) {
       id: 'unclustered-point', type: 'circle', source: 'localities',
       filter: ['!', ['has', 'point_count']],
       paint: {
-        'circle-color': '#d9534f', 'circle-radius': 8,
+        'circle-color': '#3d8bfd', 'circle-radius': 7,
         'circle-stroke-width': 2, 'circle-stroke-color': '#fff',
       },
     });
@@ -1519,3 +1495,27 @@ document.querySelectorAll('.species-tabs .tab-btn').forEach((btn) => {
 applyViewMode();
 restoreSpecimenFilters();
 loadSpecies();
+
+// Next/Previous species navigation
+const speciesOrder = JSON.parse(sessionStorage.getItem('searchSpeciesOrder') || '[]');
+if (speciesOrder.length > 1 && speciesId) {
+  const currentIdx = speciesOrder.findIndex((s) => s.id === speciesId);
+  if (currentIdx !== -1) {
+    const prevBtn = document.getElementById('prevSpecies');
+    const nextBtn = document.getElementById('nextSpecies');
+    if (currentIdx > 0 && prevBtn) {
+      prevBtn.style.display = '';
+      prevBtn.title = speciesOrder[currentIdx - 1].name;
+      prevBtn.addEventListener('click', () => {
+        window.location.href = `./species.html?id=${encodeURIComponent(speciesOrder[currentIdx - 1].id)}&from=species`;
+      });
+    }
+    if (currentIdx < speciesOrder.length - 1 && nextBtn) {
+      nextBtn.style.display = '';
+      nextBtn.title = speciesOrder[currentIdx + 1].name;
+      nextBtn.addEventListener('click', () => {
+        window.location.href = `./species.html?id=${encodeURIComponent(speciesOrder[currentIdx + 1].id)}&from=species`;
+      });
+    }
+  }
+}

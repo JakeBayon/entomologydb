@@ -89,9 +89,19 @@ function resetMapFilters() {
 // MAP SETUP
 // ============================================================
 
+const MAP_STYLES = {
+  default: { name: 'Default', url: 'https://demotiles.maplibre.org/style.json' },
+  osm: { name: 'Streets', url: 'https://tiles.openfreemap.org/styles/liberty' },
+  dark: { name: 'Dark', url: 'https://tiles.openfreemap.org/styles/dark' },
+  satellite: { name: 'Satellite', url: null },
+};
+
+let currentStyle = localStorage.getItem('mapStyle') || 'default';
+if (!MAP_STYLES[currentStyle]) currentStyle = 'default';
+
 const map = new maplibregl.Map({
   container: "map",
-  style: "https://demotiles.maplibre.org/style.json",
+  style: MAP_STYLES[currentStyle]?.url || MAP_STYLES.positron.url,
   center: [-85, 10],
   zoom: 3,
 });
@@ -106,9 +116,14 @@ map.addControl(nav, "top-right");
 // PIN MARKER
 // ============================================================
 
-const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-  <path d="M18 0 C8.06 0 0 8.06 0 18 C0 31.5 18 48 18 48 C18 48 36 31.5 36 18 C36 8.06 27.94 0 18 0 Z" fill="#76b476" stroke="#ffffff" stroke-width="2"/>
-  <circle cx="18" cy="18" r="6" fill="#ffffff"/>
+const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="-4 -4 40 52">
+  <defs>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <path d="M16 0 C7.16 0 0 7.16 0 16 C0 28 16 44 16 44 C16 44 32 28 32 16 C32 7.16 24.84 0 16 0 Z" fill="#3d8bfd" stroke="#ffffff" stroke-width="2" filter="url(#shadow)"/>
+  <circle cx="16" cy="16" r="5" fill="#ffffff"/>
 </svg>`;
 
 function loadPinImage() {
@@ -369,19 +384,22 @@ function renderPoints(points) {
       "circle-color": [
         "step",
         ["get", "point_count"],
-        "#76b476",
-        20, "#f1a93b",
-        100, "#e67e22",
+        "#4da6ff",
+        10, "#3d8bfd",
+        50, "#f59e0b",
+        200, "#ef4444",
       ],
       "circle-radius": [
         "step",
         ["get", "point_count"],
-        18,
-        20, 26,
-        100, 34,
+        16,
+        10, 22,
+        50, 28,
+        200, 36,
       ],
-      "circle-stroke-width": 2,
+      "circle-stroke-width": 2.5,
       "circle-stroke-color": "#ffffff",
+      "circle-opacity": 0.9,
     },
   });
 
@@ -531,7 +549,7 @@ function renderPoints(points) {
 
         <div class="popup-footer">
           <a class="popup-link"
-            href="../search-page/index.html?countries=${encodeURIComponent(props.country || '')}&provinces=${encodeURIComponent(props.province || '')}&localities=${encodeURIComponent(props.locality_name || '')}">
+            href="../search-page/index.html?localityId=${encodeURIComponent(props.locality_id)}">
             View in search →
           </a>
         </div>
@@ -581,17 +599,36 @@ async function loadSpecimenPoints() {
       }
     });
 
-    allPoints = points;
+    // Filter to only valid species using genus allowlist
+    updateLoadingState('Filtering valid species...');
+    const { getGenusTribeMap } = await import('../shared/bruchindb-api.js');
+    const genusTribeMap = await getGenusTribeMap();
+    const validGenera = new Set(Object.keys(genusTribeMap));
+
+    for (const p of points) {
+      p.species = (p.species || []).filter((sp) => {
+        const name = typeof sp === 'string' ? sp : sp.name;
+        // Clean subgenus parens for matching: "Genus (Subgenus) species" -> "Genus species"
+        const cleaned = name.replace(/\([A-Z][a-z]*\.?\)\s*/g, '').trim();
+        const parts = cleaned.split(/\s+/);
+        return validGenera.has(parts[0]);
+      });
+      p.species_count = p.species.length;
+    }
+
+    // Remove localities with no valid species
+    const filteredPoints = points.filter((p) => p.species.length > 0);
+    allPoints = filteredPoints;
     isLoaded = true;
 
     hideLoadingState();
 
-    if (points.length === 0) {
+    if (filteredPoints.length === 0) {
       showLoadingState('No localities with coordinates found');
       return;
     }
 
-    renderPoints(points);
+    renderPoints(filteredPoints);
 
     // Update stats in header if element exists
     const statsEl = document.getElementById('mapStats');
@@ -672,6 +709,58 @@ map.on("load", () => {
   // Hide grid lines from demotiles style
   ['countries-boundary', 'geolines'].forEach((layerId) => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
+  });
+
+  // Style switcher
+  const styleDiv = document.createElement('div');
+  styleDiv.className = 'maplibregl-ctrl';
+  styleDiv.style.cssText = 'padding:2px;background:#fff;border-radius:4px;';
+  styleDiv.innerHTML = `<select id="mapStyleSelect" style="border:none;font-size:11px;padding:2px 4px;cursor:pointer;background:#fff;width:70px;">
+    ${Object.entries(MAP_STYLES).map(([key, s]) => `<option value="${key}" ${key === currentStyle ? 'selected' : ''}>${s.name}</option>`).join('')}
+  </select>`;
+  map.getContainer().appendChild(styleDiv);
+  styleDiv.style.cssText += 'position:absolute;top:16px;right:60px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.15);border-radius:6px;';
+
+  document.getElementById('mapStyleSelect').addEventListener('change', (e) => {
+    const key = e.target.value;
+    localStorage.setItem('mapStyle', key);
+    currentStyle = key;
+    if (key === 'satellite') {
+      map.setStyle({
+        version: 8,
+        sources: {
+          'satellite': {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            attribution: '&copy; Esri',
+            maxzoom: 18,
+          },
+        },
+        layers: [{
+          id: 'satellite-tiles',
+          type: 'raster',
+          source: 'satellite',
+          minzoom: 0,
+          maxzoom: 18,
+        }],
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      });
+    } else {
+      map.setStyle(MAP_STYLES[key].url);
+    }
+    map.once('idle', () => {
+      [POINT_LAYER_ID, CLUSTER_COUNT_LAYER_ID, CLUSTERS_LAYER_ID].forEach((id) => {
+        if (map.getLayer(id)) map.removeLayer(id);
+      });
+      if (map.getSource(SPECIMENS_SOURCE_ID)) map.removeSource(SPECIMENS_SOURCE_ID);
+      if (map.getSource(BBOX_SOURCE_ID)) map.removeSource(BBOX_SOURCE_ID);
+      if (map.hasImage(PIN_IMAGE_ID)) map.removeImage(PIN_IMAGE_ID);
+      ensureBboxLayers();
+      if (isLoaded) {
+        loadPinImage().then(() => renderPoints(allPoints));
+      }
+    });
   });
 });
 

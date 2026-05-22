@@ -9,6 +9,7 @@ import {
   getLocality,
   getMapPoints,
   TRIBES,
+  getGenusTribeMap,
 } from '../shared/bruchindb-api.js';
 
 sessionStorage.removeItem('breadcrumbActive');
@@ -660,6 +661,24 @@ async function runSearch(useCache = false) {
       results = await searchSpecies(filters);
     }
     lastResults = results;
+    // Enrich with tribe from genus data
+    const genusTribeMap = await getGenusTribeMap();
+    for (const s of lastResults) {
+      if (!s.Tribe) s.Tribe = genusTribeMap[s.Genus] || '';
+    }
+
+    // Locality species filter (from map marker click)
+    if (initialFilters.localitySpecies && initialFilters.localitySpecies.length > 0) {
+      const locSpecies = initialFilters.localitySpecies;
+      lastResults = lastResults.filter((s) => {
+        return locSpecies.some((sp) => {
+          const name = typeof sp === 'string' ? sp : sp.name;
+          const cleaned = name.replace(/\([A-Z][a-z]*\.?\)\s*/g, '').trim();
+          const parts = cleaned.split(/\s+/);
+          return s.Genus === parts[0] && s.Species === parts[1];
+        });
+      });
+    }
     // Client-side name filter for single-word searches
     const sciName = filters.scientificName?.trim().toLowerCase();
     if (sciName && !sciName.includes(' ')) {
@@ -889,6 +908,7 @@ document.addEventListener('click', (e) => {
   if (card) {
     sessionStorage.setItem('searchScroll', String(window.scrollY));
     sessionStorage.setItem('searchUrl', window.location.search);
+    sessionStorage.setItem('searchSpeciesOrder', JSON.stringify(lastResults.map((s) => ({ id: s.Species_ID, name: s.Full_name }))));
     sessionStorage.setItem('searchScrollUrl', window.location.pathname + window.location.search);
   }
 });
@@ -971,7 +991,12 @@ function renderRecentlyViewed() {
         </a>
       `).join('')}
     </div>
+    <button type="button" class="clear-all-filters" id="clearRecentBtn">Clear history</button>
   `;
+  document.getElementById('clearRecentBtn')?.addEventListener('click', () => {
+    localStorage.removeItem('recentSpecies');
+    renderRecentlyViewed();
+  });
 }
 
 // ============================================================
@@ -1073,6 +1098,7 @@ document.addEventListener('click', (e) => {
   if (card) {
     sessionStorage.setItem('searchScroll', String(window.scrollY));
     sessionStorage.setItem('searchUrl', window.location.search);
+    sessionStorage.setItem('searchSpeciesOrder', JSON.stringify(lastResults.map((s) => ({ id: s.Species_ID, name: s.Full_name }))));
     const href = card.getAttribute('href');
     const id = new URLSearchParams(href.split('?')[1]).get('id');
     const name = card.querySelector('h3')?.textContent?.trim() || '';

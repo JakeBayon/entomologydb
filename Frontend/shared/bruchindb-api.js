@@ -1,5 +1,8 @@
 // BruchinDB API Client
 import { CONFIG as APP_CONFIG } from './config.js';
+
+
+
 // v3
 let genusCacheByTribe = {};
 let allowedGeneraSet = null;
@@ -63,6 +66,15 @@ async function getAllowedGenera() {
   }
   allowedGeneraSet = all;
   return allowedGeneraSet;
+}
+
+export async function getGenusTribeMap() {
+  await getAllowedGenera();
+  const map = {};
+  for (const [tribe, genera] of Object.entries(genusCacheByTribe)) {
+    for (const g of genera) map[g] = tribe;
+  }
+  return map;
 }
 
 // ============================================================
@@ -267,7 +279,14 @@ export async function getSpecies(speciesId) {
       specimenId: img['Related_images::Specimen_ID'] || '',
       originalIndex: idx,
     }))
-    ;
+    .filter((img) => {
+      const cat = (img.category || '').toLowerCase();
+      const type = cat.split(':')[0].trim();
+      if (type === 'illustration') return false;
+      const angle = cat.split(':').slice(1).join(':').trim();
+      if (angle === 'label' || angle === 'packet') return false;
+      return true;
+    });
 
   const specimens = (portals.Specimens || []).map((s) => ({
     id: s['Specimens::Dynamic_ID'] || '',
