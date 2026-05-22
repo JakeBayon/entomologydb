@@ -91,6 +91,10 @@ async function loadSpecies() {
     if (breadcrumbEnabled && (from === 'search' || from === 'species')) {
       sessionStorage.setItem('breadcrumbActive', 'true');
     }
+    // Enrich with tribe
+    const { getGenusTribeMap } = await import('../shared/bruchindb-api.js');
+    const genusTribeMap = await getGenusTribeMap();
+    species.Tribe = genusTribeMap[species.Genus] || '';
     renderSpecies(species);
   } catch (err) {
     console.error('Failed to load species:', err);
@@ -163,6 +167,7 @@ function renderTaxonomy(s) {
     s.Subgenus ? `<div class="info-item"><div class="info-label">Subgenus</div><div class="info-value"><em>${escapeHtml(s.Subgenus)}</em></div></div>` : '',
     `<div class="info-item"><div class="info-label">Species</div><div class="info-value"><em>${escapeHtml(s.Species)}</em></div></div>`,
     s.Subspecies ? `<div class="info-item"><div class="info-label">Subspecies</div><div class="info-value"><em>${escapeHtml(s.Subspecies)}</em></div></div>` : '',
+    s.Tribe ? `<div class="info-item"><div class="info-label">Tribe</div><div class="info-value">${escapeHtml(s.Tribe)}</div></div>` : '',
     s.Author ? `<div class="info-item"><div class="info-label">Author</div><div class="info-value">${escapeHtml(s.Author)}</div></div>` : '',
     s.Year ? `<div class="info-item"><div class="info-label">Year</div><div class="info-value">${escapeHtml(s.Year)}</div></div>` : '',
   ].filter(Boolean).join('');
@@ -1498,6 +1503,31 @@ loadSpecies();
 
 // Next/Previous species navigation
 const speciesOrder = JSON.parse(sessionStorage.getItem('searchSpeciesOrder') || '[]');
+if (speciesOrder.length > 1 && speciesId) {
+  const currentIdx = speciesOrder.findIndex((s) => s.id === speciesId);
+  if (currentIdx !== -1) {
+    const breadcrumbs = document.querySelector('.breadcrumbs');
+    if (breadcrumbs) breadcrumbs.style.position = 'relative';
+
+    if (currentIdx > 0) {
+      const prev = speciesOrder[currentIdx - 1];
+      const el = document.createElement('a');
+      el.className = 'species-nav species-nav-prev';
+      el.href = `./species.html?id=${encodeURIComponent(prev.id)}&from=species`;
+      el.innerHTML = `<span class="species-nav-arrow">←</span><span class="species-nav-name">${prev.name}</span>`;
+      breadcrumbs?.appendChild(el);
+    }
+
+    if (currentIdx < speciesOrder.length - 1) {
+      const next = speciesOrder[currentIdx + 1];
+      const el = document.createElement('a');
+      el.className = 'species-nav species-nav-next';
+      el.href = `./species.html?id=${encodeURIComponent(next.id)}&from=species`;
+      el.innerHTML = `<span class="species-nav-name">${next.name}</span><span class="species-nav-arrow">→</span>`;
+      breadcrumbs?.appendChild(el);
+    }
+  }
+}
 if (speciesOrder.length > 1 && speciesId) {
   const currentIdx = speciesOrder.findIndex((s) => s.id === speciesId);
   if (currentIdx !== -1) {

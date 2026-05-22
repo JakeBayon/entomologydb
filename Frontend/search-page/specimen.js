@@ -69,7 +69,7 @@ async function loadSpecimen() {
   }
 }
 
-function renderSpecimen(sp) {
+async function renderSpecimen(sp) {
   titleEl.textContent = sp.Specimen_ID || 'Specimen';
   const breadcrumbSpeciesLink = document.getElementById('breadcrumb-species-link');
   const breadcrumbSpecimen = document.getElementById('breadcrumb-specimen');
@@ -88,6 +88,15 @@ function renderSpecimen(sp) {
   subtitleEl.innerHTML = sp.species_full_name
     ? `<a href="./species.html?id=${encodeURIComponent(sp.Species_ID)}&tab=${sessionStorage.getItem('lastSpeciesTab:' + sp.Species_ID) || 'taxon'}"><em>${escapeHtml(sp.species_full_name)}</em></a>`
     : '';
+  
+  // Get tribe from genus
+  let tribe = '';
+  try {
+    const { getGenusTribeMap } = await import('../shared/bruchindb-api.js');
+    const genusTribeMap = await getGenusTribeMap();
+    const genus = (sp.species_full_name || '').split(' ')[0];
+    tribe = genusTribeMap[genus] || '';
+  } catch {}
 
   specimenInfoEl.innerHTML = [
     infoItem('Specimen ID', sp.Specimen_ID),
@@ -109,6 +118,7 @@ function renderSpecimen(sp) {
     infoItem('Coordinates', new URLSearchParams(window.location.search).get('coords') || sp.event_coordinates || ''),
     infoItem('Date', sp.event_date),
     infoItem('Collector', sp.event_collector),
+    infoItem('Tribe', tribe),
   ].filter(Boolean).join('') || '<p class="empty">No collection event recorded.</p>';
 
   const hasHost = (sp.host_species_name && sp.host_species_name.trim()) ||

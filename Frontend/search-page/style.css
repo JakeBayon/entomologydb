@@ -967,7 +967,7 @@ body {
 
 .species-hero {
   text-align: center;
-  margin: 18px 0 18px 0;
+  margin: 50px 0 18px 0;
 }
 
 .species-title {
@@ -2205,4 +2205,37 @@ main {
 
 .image-toggle input {
   margin: 0;
+}
+.species-nav {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #555;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.species-nav:hover {
+  color: #76b476;
+}
+
+.species-nav-prev {
+  left: 24px;
+  top: 54px;
+}
+
+.species-nav-next {
+  right: 24px;
+  top: 54px;
+}
+
+.species-nav-arrow {
+  color: #76b476;
+  font-weight: 600;
+}
+
+.species-nav-name {
+  font-style: italic;
 }
